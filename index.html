@@ -357,7 +357,8 @@
     }
 
     async function finishAuth() {
-        const code = new URLSearchParams(location.search).get("code");
+        const urlParams = new URLSearchParams(location.search);
+        const code = urlParams.get("code");
         if (!code) return;
         
         const verifier = sessionStorage.getItem("spotify_verifier");
@@ -383,7 +384,9 @@
                     access_token: d.access_token, 
                     expires_at: Date.now() + d.expires_in * 1000 
                 }));
-                history.replaceState({}, document.title, location.pathname);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+                localStorage.removeItem(AUTH_KEY);
             }
         } catch(e) {
             console.error("Auth error", e);
@@ -403,11 +406,12 @@
                 emptyState.style.display = 'block';
                 searchInput.disabled = true;
                 searchInput.placeholder = "Nejdřív se přihlas přes tlačítko...";
+                searchResults.style.display = 'none';
             } else {
                 emptyState.innerHTML = `Tvoje sbírka je prázdná.<br><span style="font-size: 16px; font-weight: normal; margin-top: 10px; display: block;">Vyhledej album vlevo nahoře.</span>`;
                 emptyState.style.display = albums.length === 0 ? 'block' : 'none';
                 searchInput.disabled = false;
-                searchInput.placeholder = "Hledat interpreta, album nebo singl...";
+                searchInput.placeholder = "Hledat interpreta nebo album...";
             }
         });
     }
@@ -436,16 +440,17 @@
             return;
         }
 
-        // OPRAVA: type=album vyhledá jak klasická alba, tak singly (Spotify API nezná type=single)
         const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=12`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-            if (r.status === 401) { 
+            
+            if (!r.ok) { // Pokud server vrátí jakoukoliv chybu (400, 401 atd.), smažeme klíč
                 localStorage.removeItem(AUTH_KEY); 
                 checkAuth(); 
                 return; 
             }
+            
             const data = await r.json();
             displayResults(data.albums?.items || []);
         } catch (error) {
@@ -504,6 +509,11 @@
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+            if (!r.ok) {
+                localStorage.removeItem(AUTH_KEY);
+                checkAuth();
+                return;
+            }
             const data = await r.json();
             
             basicData.trackCount = data.total_tracks;
@@ -513,7 +523,6 @@
 
             data.tracks.items.forEach(item => {
                 totalTimeMs += item.duration_ms;
-                // Uložíme první dostupnou ukázku (preview_url), na kterou narazíme
                 if (!previewUrl && item.preview_url) {
                     previewUrl = item.preview_url;
                 }
@@ -562,7 +571,6 @@
     function playPreview(url) {
         clearInterval(fadeInterval);
         
-        // Pokud není ukázka, ztlumíme současnou hudbu a zastavíme
         if (!url) {
             let vol = audioPlayer.volume;
             fadeInterval = setInterval(() => {
@@ -576,24 +584,21 @@
             return;
         }
 
-        // Přehrání nové ukázky
         if (audioPlayer.src !== url) {
             audioPlayer.src = url;
         }
         
-        audioPlayer.volume = 0; // Začíná potichu
+        audioPlayer.volume = 0;
         
         audioPlayer.play().then(() => {
             let vol = 0;
-            // Plynulý nástup (fade-in)
             fadeInterval = setInterval(() => {
-                vol = Math.min(1, vol + 0.08); // Rychle naběhne
+                vol = Math.min(1, vol + 0.08);
                 audioPlayer.volume = vol;
                 
                 if (vol >= 1) {
                     clearInterval(fadeInterval);
                     
-                    // Po 1.5s na plnou hlasitost klesne do pozadí (mini fade)
                     setTimeout(() => {
                         let downVol = 1.0;
                         fadeInterval = setInterval(() => {
@@ -605,10 +610,9 @@
                 }
             }, 50);
         }).catch(err => {
-            console.log("Přehrání blokováno prohlížečem, dokud s ním uživatel neinteraguje:", err);
+            console.log("Přehrání blokováno prohlížečem, dokud uživatel neklikne do okna:", err);
         });
     }
-
 
     // --- 3D MOVEMENT LOGIC ---
     let scrollAccumulator = 0;
@@ -632,7 +636,6 @@
         const statusColor = currentAlbum.previewUrl ? '#1db954' : '#666';  
         albumMetaEl.innerHTML = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration} <br><span style="color: ${statusColor}; font-size: 14px; margin-top: 8px; display: inline-block; font-weight: bold;">${audioStatus}</span>`;
 
-        // Spustí preview songu, pokud se liší od toho právě hrajícího
         if (currentPreviewUrl !== currentAlbum.previewUrl) {
             currentPreviewUrl = currentAlbum.previewUrl;
             playPreview(currentPreviewUrl);
