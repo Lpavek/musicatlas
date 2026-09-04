@@ -299,11 +299,10 @@
     // =========================================================================
     const CLIENT_ID = "d12d1f6a79ab4d7fbdf00435566ed35d";
     
-    // Automaticky získá aktuální URL (lokální i GitHub Pages) pro přesměrování
     const REDIRECT_URI = window.location.origin + window.location.pathname;
     const AUTH_KEY = "music_atlas_spotify_token";
 
-    // --- 1. CORE VARIABLES ---
+    // --- CORE VARIABLES ---
     const rack = document.getElementById('rack');
     const infoHud = document.getElementById('infoHud');
     const emptyState = document.getElementById('emptyState');
@@ -319,7 +318,12 @@
     let activeIndex = 0;
     const spacingZ = 45; 
 
-    // --- 2. SPOTIFY AUTHENTICATION (PKCE Flow) ---
+    // --- AUDIO PLAYER VARIABLES ---
+    const audioPlayer = new Audio();
+    let fadeInterval = null;
+    let currentPreviewUrl = null;
+
+    // --- SPOTIFY AUTHENTICATION ---
     async function pkceChallenge(v) {
         const d = new TextEncoder().encode(v);
         const h = await crypto.subtle.digest("SHA-256", d);
@@ -333,8 +337,8 @@
     }
 
     async function login() {
-        if (CLIENT_ID === "VLOZ_SEM_SVOJE_CLIENT_ID" || !CLIENT_ID) {
-            alert("Nejdřív musíš do kódu (nahoře ve scriptu) vložit své Client ID!");
+        if (!CLIENT_ID) {
+            alert("Nejdřív musíš do kódu vložit své Client ID!");
             return;
         }
         const verifier = rand();
@@ -403,12 +407,12 @@
                 emptyState.innerHTML = `Tvoje sbírka je prázdná.<br><span style="font-size: 16px; font-weight: normal; margin-top: 10px; display: block;">Vyhledej album vlevo nahoře.</span>`;
                 emptyState.style.display = albums.length === 0 ? 'block' : 'none';
                 searchInput.disabled = false;
-                searchInput.placeholder = "Hledat interpreta nebo album...";
+                searchInput.placeholder = "Hledat interpreta, album nebo singl...";
             }
         });
     }
 
-    // --- 3. SPOTIFY SEARCH LOGIC ---
+    // --- SEARCH LOGIC ---
     let debounceTimeout;
 
     searchInput.addEventListener('input', (e) => {
@@ -432,7 +436,7 @@
             return;
         }
 
-        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=10`;
+        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album,single&limit=12`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
@@ -442,7 +446,12 @@
                 return; 
             }
             const data = await r.json();
-            displayResults(data.albums?.items || []);
+            
+            let items = [];
+            if (data.albums?.items) items = items.concat(data.albums.items);
+            if (data.singles?.items) items = items.concat(data.singles.items);
+
+            displayResults(items);
         } catch (error) {
             console.error(error);
         } finally {
@@ -492,7 +501,7 @@
         });
     }
 
-    // --- 4. FETCH DETAILS & ADD TO SCENE ---
+    // --- FETCH DETAILS & PREVIEW URL ---
     async function fetchAlbumDetailsAndAdd(albumId, basicData) {
         const token = await getToken();
         const url = `https://api.spotify.com/v1/albums/${albumId}`;
@@ -502,16 +511,25 @@
             const data = await r.json();
             
             basicData.trackCount = data.total_tracks;
+            
             let totalTimeMs = 0;
+            let previewUrl = null;
+
             data.tracks.items.forEach(item => {
                 totalTimeMs += item.duration_ms;
+                // Uložíme první dostupnou ukázku (preview_url), na kterou narazíme
+                if (!previewUrl && item.preview_url) {
+                    previewUrl = item.preview_url;
+                }
             });
             
+            basicData.previewUrl = previewUrl;
             const totalMinutes = Math.floor(totalTimeMs / 60000);
             basicData.duration = totalMinutes > 0 ? `${totalMinutes} min` : '? min';
         } catch (error) {
             basicData.duration = "? min";
             basicData.trackCount = "?";
+            basicData.previewUrl = null;
         }
 
         addAlbumToScene(basicData);
@@ -544,7 +562,59 @@
         updateScene();
     }
 
-    // --- 5. 3D MOVEMENT LOGIC ---
+    // --- AUDIO CONTROL LOGIC ---
+    function playPreview(url) {
+        clearInterval(fadeInterval);
+        
+        // Pokud není ukázka, ztlumíme současnou hudbu a zastavíme
+        if (!url) {
+            let vol = audioPlayer.volume;
+            fadeInterval = setInterval(() => {
+                vol = Math.max(0, vol - 0.1);
+                audioPlayer.volume = vol;
+                if (vol <= 0) {
+                    clearInterval(fadeInterval);
+                    audioPlayer.pause();
+                }
+            }, 50);
+            return;
+        }
+
+        // Přehrání nové ukázky
+        if (audioPlayer.src !== url) {
+            audioPlayer.src = url;
+        }
+        
+        audioPlayer.volume = 0; // Začíná potichu
+        
+        audioPlayer.play().then(() => {
+            let vol = 0;
+            // Plynulý nástup (fade-in)
+            fadeInterval = setInterval(() => {
+                vol = Math.min(1, vol + 0.08); // Rychle naběhne
+                audioPlayer.volume = vol;
+                
+                if (vol >= 1) {
+                    clearInterval(fadeInterval);
+                    
+                    // Po 1.5s na plnou hlasitost klesne do pozadí (mini fade)
+                    setTimeout(() => {
+                        let downVol = 1.0;
+                        fadeInterval = setInterval(() => {
+                            downVol = Math.max(0.3, downVol - 0.05);
+                            audioPlayer.volume = downVol;
+                            if (downVol <= 0.3) clearInterval(fadeInterval);
+                        }, 80);
+                    }, 1500); 
+                }
+            }, 50);
+        }).catch(err => {
+            console.log("Přehrání blokováno prohlížečem, dokud s ním uživatel neinteraguje:", err);
+        });
+    }
+
+
+    // --- 3D MOVEMENT LOGIC ---
     let scrollAccumulator = 0;
     let clearAccTimeout;
     const scrollThreshold = 70; 
@@ -562,6 +632,12 @@
         albumIndexEl.innerText = `${(activeIndex + 1).toString().padStart(2, '0')} / ${albums.length.toString().padStart(2, '0')}`;
         albumTitleEl.innerText = currentAlbum.title;
         albumMetaEl.innerText = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration}`;
+
+        // Spustí preview songu, pokud se liší od toho právě hrajícího
+        if (currentPreviewUrl !== currentAlbum.previewUrl) {
+            currentPreviewUrl = currentAlbum.previewUrl;
+            playPreview(currentPreviewUrl);
+        }
 
         cdElements.forEach(({ el, index }) => {
             const baseZ = (index - dynamicCenterIndex) * -spacingZ;
