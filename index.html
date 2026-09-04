@@ -436,7 +436,8 @@
             return;
         }
 
-        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album,single&limit=12`;
+        // OPRAVA: type=album vyhledá jak klasická alba, tak singly (Spotify API nezná type=single)
+        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=12`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
@@ -446,12 +447,7 @@
                 return; 
             }
             const data = await r.json();
-            
-            let items = [];
-            if (data.albums?.items) items = items.concat(data.albums.items);
-            if (data.singles?.items) items = items.concat(data.singles.items);
-
-            displayResults(items);
+            displayResults(data.albums?.items || []);
         } catch (error) {
             console.error(error);
         } finally {
@@ -631,7 +627,10 @@
 
         albumIndexEl.innerText = `${(activeIndex + 1).toString().padStart(2, '0')} / ${albums.length.toString().padStart(2, '0')}`;
         albumTitleEl.innerText = currentAlbum.title;
-        const audioStatus = currentAlbum.previewUrl ? '🔊 Hraje ukázka' : '🔇 Ukázka nedostupná'; const statusColor = currentAlbum.previewUrl ? '#1db954' : '#666';  albumMetaEl.innerHTML = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration} <br><span style="color: ${statusColor}; font-size: 14px; margin-top: 8px; display: inline-block; font-weight: bold;">${audioStatus}</span>`;
+        
+        const audioStatus = currentAlbum.previewUrl ? '🔊 Hraje ukázka' : '🔇 Ukázka nedostupná'; 
+        const statusColor = currentAlbum.previewUrl ? '#1db954' : '#666';  
+        albumMetaEl.innerHTML = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration} <br><span style="color: ${statusColor}; font-size: 14px; margin-top: 8px; display: inline-block; font-weight: bold;">${audioStatus}</span>`;
 
         // Spustí preview songu, pokud se liší od toho právě hrajícího
         if (currentPreviewUrl !== currentAlbum.previewUrl) {
