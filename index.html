@@ -631,7 +631,7 @@
 
         albumIndexEl.innerText = `${(activeIndex + 1).toString().padStart(2, '0')} / ${albums.length.toString().padStart(2, '0')}`;
         albumTitleEl.innerText = currentAlbum.title;
-        albumMetaEl.innerText = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration}`;
+        const audioStatus = currentAlbum.previewUrl ? '🔊 Hraje ukázka' : '🔇 Ukázka nedostupná'; const statusColor = currentAlbum.previewUrl ? '#1db954' : '#666';  albumMetaEl.innerHTML = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration} <br><span style="color: ${statusColor}; font-size: 14px; margin-top: 8px; display: inline-block; font-weight: bold;">${audioStatus}</span>`;
 
         // Spustí preview songu, pokud se liší od toho právě hrajícího
         if (currentPreviewUrl !== currentAlbum.previewUrl) {
