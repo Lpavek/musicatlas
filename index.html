@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hudební Atlas - 3D CD</title>
+<title>Hudební Atlas - Spotify 3D CD</title>
 <style>
     * {
         box-sizing: border-box;
@@ -267,6 +267,7 @@
         transform: translate(-50%, -50%);
         display: none;
         text-align: center;
+        z-index: 150;
     }
 </style>
 </head>
@@ -274,7 +275,7 @@
 
 <div class="search-container">
     <div class="search-input-wrapper">
-        <input type="text" id="searchInput" placeholder="Hledat interpreta nebo album..." autocomplete="off">
+        <input type="text" id="searchInput" placeholder="Hledat na Spotify..." autocomplete="off" disabled>
         <div class="loading-spinner" id="loadingSpinner">Hledám...</div>
     </div>
     <div id="searchResults" class="search-results"></div>
@@ -286,13 +287,22 @@
     <div class="metadata" id="albumMeta"></div>
 </div>
 
-<div class="empty-state" id="emptyState">Tvoje sbírka je prázdná.<br><span style="font-size: 16px; font-weight: normal; margin-top: 10px; display: block;">Vyhledej album vlevo nahoře.</span></div>
+<div class="empty-state" id="emptyState">Načítání...</div>
 
 <div class="scene">
     <div class="cd-rack" id="rack"></div>
 </div>
 
 <script>
+    // =========================================================================
+    // VLOŽ SEM SVOJE SPOTIFY CLIENT ID
+    // =========================================================================
+    const CLIENT_ID = "VLOZ_SEM_SVOJE_CLIENT_ID";
+    
+    // Automaticky získá aktuální URL (lokální i GitHub Pages) pro přesměrování
+    const REDIRECT_URI = window.location.origin + window.location.pathname;
+    const AUTH_KEY = "music_atlas_spotify_token";
+
     // --- 1. CORE VARIABLES ---
     const rack = document.getElementById('rack');
     const infoHud = document.getElementById('infoHud');
@@ -300,37 +310,105 @@
     const albumIndexEl = document.getElementById('albumIndex');
     const albumTitleEl = document.getElementById('albumTitle');
     const albumMetaEl = document.getElementById('albumMeta');
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const loadingSpinner = document.getElementById('loadingSpinner');
     
     let albums = [];
     let cdElements = [];
     let activeIndex = 0;
     const spacingZ = 45; 
 
-    // --- 2. JSONP FETCH (Bypasses CORS restrictions on local files) ---
-    function fetchJSONP(url) {
-        return new Promise((resolve, reject) => {
-            const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
-            window[callbackName] = function(data) {
-                delete window[callbackName];
-                document.body.removeChild(script);
-                resolve(data);
-            };
-            
-            const script = document.createElement('script');
-            script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + callbackName;
-            script.onerror = function() {
-                delete window[callbackName];
-                document.body.removeChild(script);
-                reject(new Error('Chyba sítě při vyhledávání.'));
-            };
-            document.body.appendChild(script);
+    // --- 2. SPOTIFY AUTHENTICATION (PKCE Flow) ---
+    async function pkceChallenge(v) {
+        const d = new TextEncoder().encode(v);
+        const h = await crypto.subtle.digest("SHA-256", d);
+        return btoa(String.fromCharCode(...new Uint8Array(h))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+    
+    function rand() {
+        const a = new Uint8Array(64);
+        crypto.getRandomValues(a);
+        return btoa(String.fromCharCode(...a)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    async function login() {
+        if (CLIENT_ID === "VLOZ_SEM_SVOJE_CLIENT_ID" || !CLIENT_ID) {
+            alert("Nejdřív musíš do kódu (nahoře ve scriptu) vložit své Client ID!");
+            return;
+        }
+        const verifier = rand();
+        const challenge = await pkceChallenge(verifier);
+        sessionStorage.setItem("spotify_verifier", verifier);
+        
+        const p = new URLSearchParams({
+            client_id: CLIENT_ID,
+            response_type: "code",
+            redirect_uri: REDIRECT_URI,
+            scope: "user-read-private",
+            code_challenge_method: "S256",
+            code_challenge: challenge
+        });
+        location.href = "https://accounts.spotify.com/authorize?" + p;
+    }
+
+    async function finishAuth() {
+        const code = new URLSearchParams(location.search).get("code");
+        if (!code) return;
+        
+        const verifier = sessionStorage.getItem("spotify_verifier");
+        if (!verifier) return;
+
+        const p = new URLSearchParams({
+            client_id: CLIENT_ID,
+            grant_type: "authorization_code",
+            code: code,
+            redirect_uri: REDIRECT_URI,
+            code_verifier: verifier
+        });
+
+        try {
+            const r = await fetch("https://accounts.spotify.com/api/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: p
+            });
+            const d = await r.json();
+            if (d.access_token) {
+                localStorage.setItem(AUTH_KEY, JSON.stringify({ 
+                    access_token: d.access_token, 
+                    expires_at: Date.now() + d.expires_in * 1000 
+                }));
+                history.replaceState({}, document.title, location.pathname);
+            }
+        } catch(e) {
+            console.error("Auth error", e);
+        }
+    }
+
+    async function getToken() {
+        const a = JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
+        if (a && a.expires_at > Date.now() + 30000) return a.access_token;
+        return null;
+    }
+
+    function checkAuth() {
+        getToken().then(token => {
+            if (!token) {
+                emptyState.innerHTML = `Nejsi přihlášený do Spotify.<br><button onclick="login()" style="margin-top: 20px; padding: 12px 24px; background: #1db954; color: #fff; border: none; border-radius: 30px; cursor: pointer; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">Přihlásit se</button>`;
+                emptyState.style.display = 'block';
+                searchInput.disabled = true;
+                searchInput.placeholder = "Nejdřív se přihlas přes tlačítko...";
+            } else {
+                emptyState.innerHTML = `Tvoje sbírka je prázdná.<br><span style="font-size: 16px; font-weight: normal; margin-top: 10px; display: block;">Vyhledej album vlevo nahoře.</span>`;
+                emptyState.style.display = albums.length === 0 ? 'block' : 'none';
+                searchInput.disabled = false;
+                searchInput.placeholder = "Hledat interpreta nebo album...";
+            }
         });
     }
 
-    // --- 3. SEARCH LOGIC ---
-    const searchInput = document.getElementById('searchInput');
-    const searchResults = document.getElementById('searchResults');
-    const loadingSpinner = document.getElementById('loadingSpinner');
+    // --- 3. SPOTIFY SEARCH LOGIC ---
     let debounceTimeout;
 
     searchInput.addEventListener('input', (e) => {
@@ -344,17 +422,27 @@
         }
         
         loadingSpinner.style.display = 'block';
-        
-        debounceTimeout = setTimeout(() => {
-            executeSearch(query);
-        }, 500);
+        debounceTimeout = setTimeout(() => executeSearch(query), 500);
     });
 
     async function executeSearch(query) {
-        const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=album&limit=10`;
+        const token = await getToken();
+        if (!token) {
+            checkAuth();
+            return;
+        }
+
+        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=10`;
+        
         try {
-            const data = await fetchJSONP(url);
-            displayResults(data.results);
+            const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+            if (r.status === 401) { 
+                localStorage.removeItem(AUTH_KEY); 
+                checkAuth(); 
+                return; 
+            }
+            const data = await r.json();
+            displayResults(data.albums?.items || []);
         } catch (error) {
             console.error(error);
         } finally {
@@ -376,25 +464,25 @@
             const item = document.createElement('div');
             item.className = 'result-item';
             
-            const highResCover = album.artworkUrl100.replace('100x100bb', '600x600bb');
-            const year = album.releaseDate ? new Date(album.releaseDate).getFullYear() : 'Neznámý rok';
+            const cover = album.images[0]?.url || '';
+            const year = album.release_date ? album.release_date.split('-')[0] : 'Neznámý rok';
+            const artistName = album.artists.map(a => a.name).join(', ');
 
             item.innerHTML = `
-                <img src="${album.artworkUrl100}" alt="cover">
+                <img src="${cover}" alt="cover">
                 <div class="result-info">
-                    <div class="result-title">${album.collectionName}</div>
-                    <div class="result-artist">${album.artistName} • ${year}</div>
+                    <div class="result-title">${album.name}</div>
+                    <div class="result-artist">${artistName} • ${year}</div>
                 </div>
                 <div class="add-btn">+</div>
             `;
 
             item.addEventListener('click', () => {
-                fetchAlbumDetailsAndAdd(album.collectionId, {
-                    title: album.collectionName,
-                    artist: album.artistName,
-                    cover: highResCover,
-                    year: year,
-                    trackCount: album.trackCount
+                fetchAlbumDetailsAndAdd(album.id, {
+                    title: album.name,
+                    artist: artistName,
+                    cover: cover,
+                    year: year
                 });
                 searchResults.style.display = 'none';
                 searchInput.value = '';
@@ -405,20 +493,25 @@
     }
 
     // --- 4. FETCH DETAILS & ADD TO SCENE ---
-    async function fetchAlbumDetailsAndAdd(collectionId, basicData) {
-        const url = `https://itunes.apple.com/lookup?id=${collectionId}&entity=song`;
+    async function fetchAlbumDetailsAndAdd(albumId, basicData) {
+        const token = await getToken();
+        const url = `https://api.spotify.com/v1/albums/${albumId}`;
+        
         try {
-            const data = await fetchJSONP(url);
+            const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+            const data = await r.json();
+            
+            basicData.trackCount = data.total_tracks;
             let totalTimeMs = 0;
-            data.results.forEach(item => {
-                if (item.wrapperType === 'track' && item.trackTimeMillis) {
-                    totalTimeMs += item.trackTimeMillis;
-                }
+            data.tracks.items.forEach(item => {
+                totalTimeMs += item.duration_ms;
             });
+            
             const totalMinutes = Math.floor(totalTimeMs / 60000);
             basicData.duration = totalMinutes > 0 ? `${totalMinutes} min` : '? min';
         } catch (error) {
             basicData.duration = "? min";
+            basicData.trackCount = "?";
         }
 
         addAlbumToScene(basicData);
@@ -458,7 +551,7 @@
 
     function updateScene() {
         if (albums.length === 0) {
-            emptyState.style.display = 'block';
+            checkAuth();
             infoHud.style.display = 'none';
             return;
         }
@@ -509,7 +602,8 @@
         }
     });
 
-    updateScene();
+    // Spuštění autentizace a UI po načtení
+    finishAuth().then(() => checkAuth());
 </script>
 </body>
 </html>
