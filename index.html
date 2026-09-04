@@ -417,31 +417,25 @@
         loadingSpinner.style.display = 'block';
         debounceTimeout = setTimeout(() => executeSearch(query), 500);
     });
+async function executeSearch(query) {
+    const token = await getToken();
+    if (!token) { checkAuth(); return; }
 
-    async function executeSearch(query) {
-        const token = await getToken();
-        if (!token) { checkAuth(); return; }
-
-        // Rozšířeno na 'album,single', aby to našlo i menší projekty / underground
-        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album,single&limit=12`;
-        
-        try {
-            const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-            if (r.status === 401) { localStorage.removeItem(AUTH_KEY); checkAuth(); return; }
-            const data = await r.json();
-            
-            // Kombinujeme alba i singlu do jednoho výpisu
-            let items = [];
-            if (data.albums?.items) items = items.concat(data.albums.items);
-            if (data.singles?.items) items = items.concat(data.singles.items);
-            
-            displayResults(data.albums?.items || []);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            loadingSpinner.style.display = 'none';
-        }
+    // 'single' není platný type, Spotify API by na to spadlo s 400.
+    // Singly jsou stejně vráceny jako album objekty (album_type: "single").
+    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=12`;
+    
+    try {
+        const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+        if (r.status === 401) { localStorage.removeItem(AUTH_KEY); checkAuth(); return; }
+        const data = await r.json();
+        displayResults(data.albums?.items || []);
+    } catch (error) {
+        console.error(error);
+    } finally {
+        loadingSpinner.style.display = 'none';
     }
+}
 
     function displayResults(results) {
         searchResults.innerHTML = '';
