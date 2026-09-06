@@ -295,7 +295,6 @@
 
 <script>
     const CLIENT_ID = "d12d1f6a79ab4d7fbdf00435566ed35d";
-    
     const REDIRECT_URI = window.location.origin + window.location.pathname;
     const AUTH_KEY = "music_atlas_spotify_token";
 
@@ -351,10 +350,13 @@
     }
 
     async function finishAuth() {
-        const urlParams = new URLSearchParams(location.search);
+        const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get("code");
         if (!code) return;
-        
+
+        // Okamžitě odstraníme kód z URL, aby se nezacyklil při reloadu
+        window.history.replaceState({}, document.title, window.location.pathname);
+
         const verifier = sessionStorage.getItem("spotify_verifier");
         if (!verifier) return;
 
@@ -376,11 +378,11 @@
             if (d.access_token) {
                 localStorage.setItem(AUTH_KEY, JSON.stringify({ 
                     access_token: d.access_token, 
-                    expires_at: Date.now() + d.expires_in * 1000 
+                    expires_at: Date.now() + (d.expires_in * 1000) 
                 }));
-                window.history.replaceState({}, document.title, window.location.pathname);
+                sessionStorage.removeItem("spotify_verifier");
             } else {
-                localStorage.removeItem(AUTH_KEY);
+                console.error("Token exchange failed:", d);
             }
         } catch(e) {
             console.error("Auth error", e);
@@ -389,7 +391,9 @@
 
     async function getToken() {
         const a = JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
-        if (a && a.expires_at > Date.now() + 30000 && a.access_token) return a.access_token;
+        if (a && a.expires_at > Date.now() + 30000 && a.access_token) {
+            return a.access_token;
+        }
         return null;
     }
 
@@ -438,17 +442,23 @@
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
             
-            // Definitivní ochrana: Jakákoliv chybová HTTP odpověď zničí neplatný token a vyžádá nový
-            if (!r.ok) { 
+            // Odhlásit pouze při reálné neplatnosti tokenu (401)
+            if (r.status === 401) { 
                 localStorage.removeItem(AUTH_KEY); 
                 checkAuth(); 
                 return; 
+            }
+
+            if (!r.ok) {
+                const errData = await r.json().catch(() => ({}));
+                console.error("Chyba při vyhledávání:", r.status, errData);
+                return;
             }
             
             const data = await r.json();
             displayResults(data.albums?.items || []);
         } catch (error) {
-            console.error(error);
+            console.error("Chyba sítě:", error);
         } finally {
             loadingSpinner.style.display = 'none';
         }
@@ -498,15 +508,22 @@
 
     async function fetchAlbumDetailsAndAdd(albumId, basicData) {
         const token = await getToken();
+        if (!token) {
+            checkAuth();
+            return;
+        }
+
         const url = `https://api.spotify.com/v1/albums/${albumId}`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-            if (!r.ok) {
+            if (r.status === 401) {
                 localStorage.removeItem(AUTH_KEY);
                 checkAuth();
                 return;
             }
+            if (!r.ok) throw new Error("Chyba stažení detailu alba");
+
             const data = await r.json();
             
             basicData.trackCount = data.total_tracks;
@@ -671,7 +688,8 @@
         }
     });
 
-    finishAuth().then(() => checkAuth());
+    // Spuštění inicializace
+    finishAuth().finally(() => checkAuth());
 </script>
 </body>
 </html>
