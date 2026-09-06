@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hudební Atlas - Spotify 3D CD</title>
+<!-- Prázdná ikona pro odstranění chyby 404 favicon -->
+<link rel="icon" href="data:,">
 <style>
     * {
         box-sizing: border-box;
@@ -269,14 +271,6 @@
         text-align: center;
         z-index: 150;
     }
-
-    .search-error {
-        padding: 14px 16px;
-        color: #ff6b6b;
-        font-size: 14px;
-        text-align: center;
-        line-height: 1.4;
-    }
 </style>
 </head>
 <body>
@@ -302,9 +296,7 @@
 </div>
 
 <script>
-    // ⚠️ Sem si vlož své Spotify Client ID (z developer.spotify.com/dashboard)
     const CLIENT_ID = "d12d1f6a79ab4d7fbdf00435566ed35d";
-    
     const REDIRECT_URI = window.location.origin + window.location.pathname;
     const AUTH_KEY = "music_atlas_spotify_token";
 
@@ -360,16 +352,15 @@
     }
 
     async function finishAuth() {
-        const urlParams = new URLSearchParams(location.search);
+        const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get("code");
         if (!code) return;
-        
+
+        // Okamžitě odstraníme kód z URL, aby se nezacyklil při reloadu
+        window.history.replaceState({}, document.title, window.location.pathname);
+
         const verifier = sessionStorage.getItem("spotify_verifier");
-        if (!verifier) {
-            // Kód v URL bez verifieru (např. reload staré stránky) - jen ho smaž a nic nedělej
-            window.history.replaceState({}, document.title, window.location.pathname);
-            return;
-        }
+        if (!verifier) return;
 
         const p = new URLSearchParams({
             client_id: CLIENT_ID,
@@ -389,31 +380,23 @@
             if (d.access_token) {
                 localStorage.setItem(AUTH_KEY, JSON.stringify({ 
                     access_token: d.access_token, 
-                    expires_at: Date.now() + d.expires_in * 1000 
+                    expires_at: Date.now() + (d.expires_in * 1000) 
                 }));
+                sessionStorage.removeItem("spotify_verifier");
             } else {
-                console.error("Token exchange selhal:", d);
-                localStorage.removeItem(AUTH_KEY);
+                console.error("Token exchange failed:", d);
             }
         } catch(e) {
             console.error("Auth error", e);
-        } finally {
-            // Kód z URL je jednorázový (PKCE) - vždy ho smaž, ať se náhodou
-            // nezkusí použít znovu (to by vždy skončilo chybou).
-            sessionStorage.removeItem("spotify_verifier");
-            window.history.replaceState({}, document.title, window.location.pathname);
         }
     }
 
     async function getToken() {
         const a = JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
-        if (a && a.expires_at > Date.now() + 30000 && a.access_token) return a.access_token;
+        if (a && a.expires_at > Date.now() + 30000 && a.access_token) {
+            return a.access_token;
+        }
         return null;
-    }
-
-    function logout() {
-        localStorage.removeItem(AUTH_KEY);
-        checkAuth();
     }
 
     function checkAuth() {
@@ -452,56 +435,36 @@
     async function executeSearch(query) {
         const token = await getToken();
         if (!token) {
-            loadingSpinner.style.display = 'none';
             checkAuth();
             return;
         }
 
-        // market=from_token -> Spotify si vezme zemi podle přihlášeného uživatele.
-        // Bez toho parametru API v některých případech vrací 400 Bad Request.
-        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=12&market=from_token`;
+        // TADY JE ZMĚNA: limit=5 je plně v rámci bezpečných hodnot Spotify API
+        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=5`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-
-            if (r.status === 401) {
-                // Token opravdu neplatný/expirovaný -> teprve teď má smysl odhlásit
-                console.warn("Spotify: token zamítnut (401), odhlašuji.");
-                logout();
-                return;
+            
+            // Odhlásit pouze při reálné neplatnosti tokenu (401)
+            if (r.status === 401) { 
+                localStorage.removeItem(AUTH_KEY); 
+                checkAuth(); 
+                return; 
             }
 
             if (!r.ok) {
-                // Jakákoliv jiná chyba (400, 403, 429, 5xx...) NENÍ problém s přihlášením -
-                // token necháváme být a jen zobrazíme, co se stalo.
-                const errBody = await r.json().catch(() => null);
-                console.error("Spotify search chyba:", r.status, errBody);
-                showSearchError(r.status, errBody);
+                const errData = await r.json().catch(() => ({}));
+                console.error("Chyba při vyhledávání:", r.status, errData);
                 return;
             }
             
             const data = await r.json();
             displayResults(data.albums?.items || []);
         } catch (error) {
-            console.error("Síťová chyba při hledání:", error);
-            showSearchError(0, null);
+            console.error("Chyba sítě:", error);
         } finally {
             loadingSpinner.style.display = 'none';
         }
-    }
-
-    function showSearchError(status, errBody) {
-        const message = errBody?.error?.message;
-        let text;
-        if (status === 429) {
-            text = "Spotify dočasně omezuje počet dotazů (429). Zkus to za chvíli znovu.";
-        } else if (status === 0) {
-            text = "Nepodařilo se spojit se Spotify API (síťová chyba).";
-        } else {
-            text = `Chyba vyhledávání (HTTP ${status})${message ? ": " + message : ""}`;
-        }
-        searchResults.innerHTML = `<div class="search-error">${text}</div>`;
-        searchResults.style.display = 'flex';
     }
 
     function displayResults(results) {
@@ -553,25 +516,16 @@
             return;
         }
 
-        const url = `https://api.spotify.com/v1/albums/${albumId}?market=from_token`;
+        const url = `https://api.spotify.com/v1/albums/${albumId}`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-
             if (r.status === 401) {
-                logout();
+                localStorage.removeItem(AUTH_KEY);
+                checkAuth();
                 return;
             }
-
-            if (!r.ok) {
-                const errBody = await r.json().catch(() => null);
-                console.error("Chyba při načítání detailu alba:", r.status, errBody);
-                basicData.duration = "? min";
-                basicData.trackCount = "?";
-                basicData.previewUrl = null;
-                addAlbumToScene(basicData);
-                return;
-            }
+            if (!r.ok) throw new Error("Chyba stažení detailu alba");
 
             const data = await r.json();
             
@@ -591,7 +545,6 @@
             const totalMinutes = Math.floor(totalTimeMs / 60000);
             basicData.duration = totalMinutes > 0 ? `${totalMinutes} min` : '? min';
         } catch (error) {
-            console.error("Síťová chyba při načítání detailu alba:", error);
             basicData.duration = "? min";
             basicData.trackCount = "?";
             basicData.previewUrl = null;
@@ -738,7 +691,8 @@
         }
     });
 
-    finishAuth().then(() => checkAuth());
+    // Spuštění inicializace
+    finishAuth().finally(() => checkAuth());
 </script>
 </body>
 </html>
