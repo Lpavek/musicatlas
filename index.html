@@ -438,7 +438,7 @@
                     access_token: d.access_token, 
                     expires_at: Date.now() + d.expires_in * 1000 
                 };
-                if (d.refresh_token) authData.refresh_token = d.refresh_token; // Uložíme i refresh token pro automatickou obnovu
+                if (d.refresh_token) authData.refresh_token = d.refresh_token;
                 
                 localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
                 window.history.replaceState({}, document.title, window.location.pathname);
@@ -454,10 +454,8 @@
         const a = JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
         if (!a) return null;
         
-        // Pokud je token stále platný (s 1min rezervou)
         if (a.expires_at > Date.now() + 60000) return a.access_token;
         
-        // Pokud vypršel, ale máme refresh_token, obnovíme ho na pozadí
         if (a.refresh_token) {
             const p = new URLSearchParams({
                 client_id: CLIENT_ID,
@@ -529,7 +527,7 @@
             return;
         }
 
-        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=12`;
+        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=5`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
@@ -626,10 +624,9 @@
             basicData.previewUrl = null;
         }
 
-        // Nově přidané album jde na začátek (unshift) místo na konec (push)
         albums.unshift(basicData);
         saveAlbums();
-        activeIndex = 0; // Focus hned na novou položku
+        activeIndex = 0; 
         renderRack();
     }
 
@@ -696,7 +693,6 @@
         albumIndexEl.innerText = `${(activeIndex + 1).toString().padStart(2, '0')} / ${albums.length.toString().padStart(2, '0')}`;
         albumTitleEl.innerText = currentAlbum.title;
         
-        // Zobrazí text POUZE tehdy, pokud ukázka reálně existuje. "Ukázka nedostupná" bylo odstraněno.
         let audioStatusHTML = "";
         if (currentAlbum.previewUrl) {
             audioStatusHTML = `<br><span style="color: #1db954; font-size: 14px; margin-top: 8px; display: inline-block; font-weight: bold;">🔊 Hraje ukázka</span>`;
@@ -731,7 +727,6 @@
             if (activeIndex < 0) activeIndex = 0;
             if (activeIndex >= albums.length) activeIndex = albums.length - 1;
             
-            // Přehrání zvuku kliknutí pouze při reálné změně alba
             if (prevIndex !== activeIndex) {
                 playTickSound();
                 updateScene();
