@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hudební Atlas - Spotify 3D CD</title>
-<!-- Prázdná ikona pro odstranění chyby 404 favicon -->
-<link rel="icon" href="data:,">
 <style>
     * {
         box-sizing: border-box;
@@ -297,8 +295,10 @@
 
 <script>
     const CLIENT_ID = "d12d1f6a79ab4d7fbdf00435566ed35d";
+    
     const REDIRECT_URI = window.location.origin + window.location.pathname;
     const AUTH_KEY = "music_atlas_spotify_token";
+    const ALBUMS_KEY = "music_atlas_saved_albums";
 
     const rack = document.getElementById('rack');
     const infoHud = document.getElementById('infoHud');
@@ -319,6 +319,65 @@
     let fadeInterval = null;
     let currentPreviewUrl = null;
 
+    // --- UI SCROLL CLICK SOUND (Web Audio API) ---
+    let audioCtx = null;
+    function playTickSound() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    // --- LOCAL STORAGE ALBUMS ---
+    function saveAlbums() {
+        localStorage.setItem(ALBUMS_KEY, JSON.stringify(albums));
+    }
+
+    function loadAlbums() {
+        const saved = localStorage.getItem(ALBUMS_KEY);
+        if (saved) {
+            albums = JSON.parse(saved);
+        }
+        renderRack();
+    }
+
+    function renderRack() {
+        rack.innerHTML = '';
+        cdElements = [];
+        albums.forEach((albumData, index) => {
+            const cd = document.createElement('div');
+            cd.className = 'cd-case';
+            cd.innerHTML = `
+                <div class="cd-edge-left"></div>
+                <div class="cd-back-face"></div>
+                <div class="cd-plastic">
+                    <div class="cd-spine-area"></div>
+                    <div class="cd-artwork">
+                        <img src="${albumData.cover}" alt="${albumData.title}">
+                    </div>
+                </div>
+            `;
+            rack.appendChild(cd);
+            cdElements.push({ el: cd, index: index });
+        });
+        
+        if (albums.length > 0) {
+            emptyState.style.display = 'none';
+            infoHud.style.display = 'block';
+            updateScene();
+        }
+    }
+
+    // --- SPOTIFY AUTHENTICATION ---
     async function pkceChallenge(v) {
         const d = new TextEncoder().encode(v);
         const h = await crypto.subtle.digest("SHA-256", d);
@@ -352,13 +411,10 @@
     }
 
     async function finishAuth() {
-        const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(location.search);
         const code = urlParams.get("code");
         if (!code) return;
-
-        // Okamžitě odstraníme kód z URL, aby se nezacyklil při reloadu
-        window.history.replaceState({}, document.title, window.location.pathname);
-
+        
         const verifier = sessionStorage.getItem("spotify_verifier");
         if (!verifier) return;
 
@@ -378,13 +434,16 @@
             });
             const d = await r.json();
             if (d.access_token) {
-                localStorage.setItem(AUTH_KEY, JSON.stringify({ 
+                const authData = { 
                     access_token: d.access_token, 
-                    expires_at: Date.now() + (d.expires_in * 1000) 
-                }));
-                sessionStorage.removeItem("spotify_verifier");
+                    expires_at: Date.now() + d.expires_in * 1000 
+                };
+                if (d.refresh_token) authData.refresh_token = d.refresh_token; // Uložíme i refresh token pro automatickou obnovu
+                
+                localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
+                window.history.replaceState({}, document.title, window.location.pathname);
             } else {
-                console.error("Token exchange failed:", d);
+                localStorage.removeItem(AUTH_KEY);
             }
         } catch(e) {
             console.error("Auth error", e);
@@ -393,9 +452,36 @@
 
     async function getToken() {
         const a = JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
-        if (a && a.expires_at > Date.now() + 30000 && a.access_token) {
-            return a.access_token;
+        if (!a) return null;
+        
+        // Pokud je token stále platný (s 1min rezervou)
+        if (a.expires_at > Date.now() + 60000) return a.access_token;
+        
+        // Pokud vypršel, ale máme refresh_token, obnovíme ho na pozadí
+        if (a.refresh_token) {
+            const p = new URLSearchParams({
+                client_id: CLIENT_ID,
+                grant_type: "refresh_token",
+                refresh_token: a.refresh_token
+            });
+
+            try {
+                const r = await fetch("https://accounts.spotify.com/api/token", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: p
+                });
+                const d = await r.json();
+                if (d.access_token) {
+                    a.access_token = d.access_token;
+                    a.expires_at = Date.now() + d.expires_in * 1000;
+                    if (d.refresh_token) a.refresh_token = d.refresh_token;
+                    localStorage.setItem(AUTH_KEY, JSON.stringify(a));
+                    return a.access_token;
+                }
+            } catch(e) { console.error("Refresh token selhal", e); }
         }
+        
         return null;
     }
 
@@ -407,15 +493,19 @@
                 searchInput.disabled = true;
                 searchInput.placeholder = "Nejdřív se přihlas přes tlačítko...";
                 searchResults.style.display = 'none';
+                infoHud.style.display = 'none';
             } else {
-                emptyState.innerHTML = `Tvoje sbírka je prázdná.<br><span style="font-size: 16px; font-weight: normal; margin-top: 10px; display: block;">Vyhledej album vlevo nahoře.</span>`;
-                emptyState.style.display = albums.length === 0 ? 'block' : 'none';
+                if (albums.length === 0) {
+                    emptyState.innerHTML = `Tvoje sbírka je prázdná.<br><span style="font-size: 16px; font-weight: normal; margin-top: 10px; display: block;">Vyhledej album vlevo nahoře.</span>`;
+                    emptyState.style.display = 'block';
+                }
                 searchInput.disabled = false;
                 searchInput.placeholder = "Hledat interpreta nebo album...";
             }
         });
     }
 
+    // --- SEARCH LOGIC ---
     let debounceTimeout;
 
     searchInput.addEventListener('input', (e) => {
@@ -439,29 +529,21 @@
             return;
         }
 
-        // TADY JE ZMĚNA: limit=5 je plně v rámci bezpečných hodnot Spotify API
-        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=5`;
+        const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=12`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
             
-            // Odhlásit pouze při reálné neplatnosti tokenu (401)
-            if (r.status === 401) { 
+            if (!r.ok) { 
                 localStorage.removeItem(AUTH_KEY); 
                 checkAuth(); 
                 return; 
-            }
-
-            if (!r.ok) {
-                const errData = await r.json().catch(() => ({}));
-                console.error("Chyba při vyhledávání:", r.status, errData);
-                return;
             }
             
             const data = await r.json();
             displayResults(data.albums?.items || []);
         } catch (error) {
-            console.error("Chyba sítě:", error);
+            console.error(error);
         } finally {
             loadingSpinner.style.display = 'none';
         }
@@ -509,24 +591,18 @@
         });
     }
 
+    // --- FETCH DETAILS & PREVIEW URL ---
     async function fetchAlbumDetailsAndAdd(albumId, basicData) {
         const token = await getToken();
-        if (!token) {
-            checkAuth();
-            return;
-        }
-
         const url = `https://api.spotify.com/v1/albums/${albumId}`;
         
         try {
             const r = await fetch(url, { headers: { Authorization: "Bearer " + token } });
-            if (r.status === 401) {
+            if (!r.ok) {
                 localStorage.removeItem(AUTH_KEY);
                 checkAuth();
                 return;
             }
-            if (!r.ok) throw new Error("Chyba stažení detailu alba");
-
             const data = await r.json();
             
             basicData.trackCount = data.total_tracks;
@@ -550,36 +626,14 @@
             basicData.previewUrl = null;
         }
 
-        addAlbumToScene(basicData);
+        // Nově přidané album jde na začátek (unshift) místo na konec (push)
+        albums.unshift(basicData);
+        saveAlbums();
+        activeIndex = 0; // Focus hned na novou položku
+        renderRack();
     }
 
-    function addAlbumToScene(albumData) {
-        albums.push(albumData);
-        const newIndex = albums.length - 1;
-        
-        const cd = document.createElement('div');
-        cd.className = 'cd-case';
-        cd.innerHTML = `
-            <div class="cd-edge-left"></div>
-            <div class="cd-back-face"></div>
-            <div class="cd-plastic">
-                <div class="cd-spine-area"></div>
-                <div class="cd-artwork">
-                    <img src="${albumData.cover}" alt="${albumData.title}">
-                </div>
-            </div>
-        `;
-
-        rack.appendChild(cd);
-        cdElements.push({ el: cd, index: newIndex });
-        
-        emptyState.style.display = 'none';
-        infoHud.style.display = 'block';
-
-        activeIndex = newIndex;
-        updateScene();
-    }
-
+    // --- AUDIO CONTROL LOGIC ---
     function playPreview(url) {
         clearInterval(fadeInterval);
         
@@ -626,14 +680,13 @@
         });
     }
 
+    // --- 3D MOVEMENT LOGIC ---
     let scrollAccumulator = 0;
     let clearAccTimeout;
     const scrollThreshold = 70; 
 
     function updateScene() {
         if (albums.length === 0) {
-            checkAuth();
-            infoHud.style.display = 'none';
             return;
         }
 
@@ -643,9 +696,12 @@
         albumIndexEl.innerText = `${(activeIndex + 1).toString().padStart(2, '0')} / ${albums.length.toString().padStart(2, '0')}`;
         albumTitleEl.innerText = currentAlbum.title;
         
-        const audioStatus = currentAlbum.previewUrl ? '🔊 Hraje ukázka' : '🔇 Ukázka nedostupná'; 
-        const statusColor = currentAlbum.previewUrl ? '#1db954' : '#666';  
-        albumMetaEl.innerHTML = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration} <br><span style="color: ${statusColor}; font-size: 14px; margin-top: 8px; display: inline-block; font-weight: bold;">${audioStatus}</span>`;
+        // Zobrazí text POUZE tehdy, pokud ukázka reálně existuje. "Ukázka nedostupná" bylo odstraněno.
+        let audioStatusHTML = "";
+        if (currentAlbum.previewUrl) {
+            audioStatusHTML = `<br><span style="color: #1db954; font-size: 14px; margin-top: 8px; display: inline-block; font-weight: bold;">🔊 Hraje ukázka</span>`;
+        }
+        albumMetaEl.innerHTML = `${currentAlbum.artist} • ${currentAlbum.year} • ${currentAlbum.trackCount} skladeb • ${currentAlbum.duration} ${audioStatusHTML}`;
 
         if (currentPreviewUrl !== currentAlbum.previewUrl) {
             currentPreviewUrl = currentAlbum.previewUrl;
@@ -670,10 +726,16 @@
         while (scrollAccumulator <= -scrollThreshold) { steps--; scrollAccumulator += scrollThreshold; }
 
         if (steps !== 0) {
+            let prevIndex = activeIndex;
             activeIndex += steps;
             if (activeIndex < 0) activeIndex = 0;
             if (activeIndex >= albums.length) activeIndex = albums.length - 1;
-            updateScene();
+            
+            // Přehrání zvuku kliknutí pouze při reálné změně alba
+            if (prevIndex !== activeIndex) {
+                playTickSound();
+                updateScene();
+            }
         }
 
         clearAccTimeout = setTimeout(() => { scrollAccumulator = 0; }, 50);
@@ -682,17 +744,22 @@
     window.addEventListener('keydown', (e) => {
         if(albums.length === 0) return;
 
+        let prevIndex = activeIndex;
         if (e.key === 'ArrowDown' && activeIndex < albums.length - 1) {
             activeIndex++;
-            updateScene();
         } else if (e.key === 'ArrowUp' && activeIndex > 0) {
             activeIndex--;
+        }
+
+        if (prevIndex !== activeIndex) {
+            playTickSound();
             updateScene();
         }
     });
 
-    // Spuštění inicializace
-    finishAuth().finally(() => checkAuth());
+    // Start aplikace
+    loadAlbums();
+    finishAuth().then(() => checkAuth());
 </script>
 </body>
 </html>
