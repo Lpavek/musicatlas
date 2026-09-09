@@ -163,23 +163,7 @@
         transform-style: preserve-3d;
         cursor: pointer;
         will-change: transform, opacity;
-        transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.85s ease;
-    }
-
-    .cd-rotator {
-        position: absolute;
-        inset: 0;
-        transform-style: preserve-3d;
-    }
-
-    .cd-case.detail-active .cd-rotator {
-        animation: gentleRotateZ 7s ease-in-out infinite;
-    }
-
-    @keyframes gentleRotateZ {
-        0%   { transform: rotateZ(-22deg); }
-        50%  { transform: rotateZ(22deg); }
-        100% { transform: rotateZ(-22deg); }
+        transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
     }
 
     .cd-plastic {
@@ -603,14 +587,12 @@
             const cd = document.createElement('div');
             cd.className = 'cd-case';
             cd.innerHTML = `
-                <div class="cd-rotator">
-                    <div class="cd-edge-left"></div>
-                    <div class="cd-back-face"></div>
-                    <div class="cd-plastic">
-                        <div class="cd-spine-area"></div>
-                        <div class="cd-artwork">
-                            <img src="${albumData.cover}" alt="${albumData.title}">
-                        </div>
+                <div class="cd-edge-left"></div>
+                <div class="cd-back-face"></div>
+                <div class="cd-plastic">
+                    <div class="cd-spine-area"></div>
+                    <div class="cd-artwork">
+                        <img src="${albumData.cover}" alt="${albumData.title}">
                     </div>
                 </div>
             `;
@@ -990,24 +972,13 @@
             infoHud.classList.add('hidden-hud');
             cdElements.forEach(({ el, index }) => {
                 if (index === detailIndex) {
-                    el.classList.add('detail-active');
-                    el.style.transitionDelay = '0ms';
-                    el.style.transform = `translate3d(-230px, 0px, 260px) scale(1.4)`;
+                    el.style.transform = `translate3d(-230px, 0px, 260px) scale(1.35) rotateY(24deg)`;
                     el.style.opacity = '1';
                     el.style.pointerEvents = 'auto';
                     el.style.zIndex = '10';
                 } else {
-                    el.classList.remove('detail-active');
                     const baseZ = (index - dynamicCenterIndex) * -spacingZ;
-                    const dist = Math.abs(index - detailIndex);
-                    // fan the leaving cards out to varied directions/depths so the exit
-                    // feels scattered rather than a single uniform slide
-                    const dir = (index < detailIndex) ? -1 : 1;
-                    const scatterX = dir * (760 + dist * 90);
-                    const scatterY = ((index % 2 === 0) ? -1 : 1) * (40 + dist * 22);
-                    const scatterZ = baseZ - 260 - dist * 30;
-                    el.style.transitionDelay = `${Math.min(360, dist * 55)}ms`;
-                    el.style.transform = `translate3d(${scatterX}px, ${scatterY}px, ${scatterZ}px) scale(0.85)`;
+                    el.style.transform = `translate3d(-900px, 40px, ${baseZ - 200}px)`;
                     el.style.opacity = '0';
                     el.style.pointerEvents = 'none';
                 }
@@ -1015,8 +986,6 @@
         } else {
             infoHud.classList.remove('hidden-hud');
             cdElements.forEach(({ el, index }) => {
-                el.classList.remove('detail-active');
-                el.style.transitionDelay = '0ms';
                 const baseZ = (index - dynamicCenterIndex) * -spacingZ;
                 let slideX = index === activeIndex ? 180 : 0;
                 el.style.transform = `translate3d(${slideX}px, 0px, ${baseZ}px)`;
