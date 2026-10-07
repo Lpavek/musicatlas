@@ -128,35 +128,32 @@ const SpotifyAPI = {
         return type === 'artist' ? data.artists.items : data.albums.items;
     },
 
-    // BEZPEČNĚ OPRAVENÉ STAHOVÁNÍ DISKOGRAFIE
-    // Zaručeně opravená funkce bez mezer v URL
-    async getArtistDiscography(artistId) {
+async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
-            // URLSearchParams zaručí přesné formátování bez mezer
-            const params = new URLSearchParams();
-            params.append('include_groups', 'album,single,appears_on');
-            params.append('limit', '50');
+            // Skladani URL pomoci URLSearchParams vyluci jakekoliv mezery
+            const params = new URLSearchParams({
+                include_groups: 'album,single,appears_on',
+                limit: '20'
+            });
 
-            const url = `https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`;
-            
-            const r = await fetch(url, { 
+            const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`, {
                 headers: { Authorization: "Bearer " + token }
             });
-            
-            if (!r.ok) {
-                const errText = await r.text();
-                console.error("Spotify API vrhalo chybu:", r.status, errText);
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error("Spotify API vratilo chybu:", response.status, errText);
                 return [];
             }
 
-            const data = await r.json();
+            const data = await response.json();
             if (!data.items) return [];
 
             const unique = [];
             const seen = new Set();
-            
+
             data.items.forEach(item => {
                 if (item && !seen.has(item.name)) {
                     seen.add(item.name);
@@ -164,7 +161,7 @@ const SpotifyAPI = {
                         id: item.id,
                         name: item.name,
                         image: (item.images && item.images.length > 0) ? item.images[0].url : 'https://via.placeholder.com/150',
-                        group: item.album_group || 'album', 
+                        group: item.album_group || 'album',
                         release_date: item.release_date || '2000-01-01',
                         listened: false,
                         rating: null,
