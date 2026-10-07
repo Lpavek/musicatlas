@@ -95,20 +95,24 @@ const SpotifyAPI = {
         return type === 'artist' ? data.artists.items : data.albums.items;
     },
     // ŽIVÉ STAŽENÍ DISKOGRAFIE PO KLIKNUTÍ NA INTERPRETA
-    async getArtistDiscography(artistId) {
+async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
+            // Snížený limit na 10 položek a URLParams bez mezer
             const params = new URLSearchParams({
                 include_groups: 'album,single,appears_on',
-                limit: '50'
+                limit: '10'
             });
 
             const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`, {
                 headers: { Authorization: "Bearer " + token }
             });
 
-            if (!response.ok) return [];
+            if (!response.ok) {
+                console.error("Spotify API vrhalo chybu:", response.status, await response.text());
+                return [];
+            }
 
             const data = await response.json();
             if (!data.items) return [];
