@@ -78,7 +78,6 @@ function updateToggleUI(activeBtn) {
 
 function renderCategoryContent() {
     contentGrid.innerHTML = '';
-    // Odfiltrovat položky patřící do otevřené kategorie a módu
     const items = savedMusic.filter(item => item.catIndex === currentCategoryIndex && item.type === currentMode);
     
     if (items.length === 0) {
@@ -103,14 +102,17 @@ async function openPlaylistModal(slotIndex) {
     searchInput.value = '';
     list.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Načítám všechny tvoje vlastní playlisty...</div>';
     
-    // Načtení všech vlastních playlistů
+    // Načtení playlistů z Spotify API
     myUserPlaylists = await SpotifyAPI.getUserPlaylists();
     renderPlaylistSelection(myUserPlaylists, slotIndex);
 
-    // Vyhledávání v reálném čase podle názvu
+    // Vyhledávání v reálném čase (odolné vůči malým/velkým písmenům)
     searchInput.oninput = (e) => {
         const query = e.target.value.toLowerCase().trim();
-        const filtered = myUserPlaylists.filter(pl => pl.name.toLowerCase().includes(query));
+        const filtered = myUserPlaylists.filter(pl => {
+            const name = (pl?.name || '').toLowerCase();
+            return name.includes(query);
+        });
         renderPlaylistSelection(filtered, slotIndex);
     };
 }
@@ -119,22 +121,25 @@ function renderPlaylistSelection(playlists, slotIndex) {
     const list = document.getElementById('playlist-list');
     list.innerHTML = '';
     
-    if (playlists.length === 0) {
+    if (!playlists || playlists.length === 0) {
         list.innerHTML = '<div style="padding: 15px; color: #888; text-align: center;">Žádný playlist nenalezen.</div>';
         return;
     }
     
     playlists.forEach(pl => {
+        if (!pl) return;
+        
         const div = document.createElement('div');
         div.className = 'list-item';
         
-        // BEZPEČNÁ KONTROLA: Bezpečně ověříme pl.images a pl.tracks
-        const img = (pl && pl.images && Array.isArray(pl.images) && pl.images.length > 0 && pl.images[0]?.url) 
-            ? pl.images[0].url 
-            : 'https://via.placeholder.com/150?text=Bez+Obrázku';
+        // BEZPEČNÉ OŠETŘENÍ: Ověření pl.images proti chybě "pl.images is null"
+        let img = 'https://via.placeholder.com/150?text=Bez+Obrázku';
+        if (pl.images && Array.isArray(pl.images) && pl.images.length > 0 && pl.images[0] && pl.images[0].url) {
+            img = pl.images[0].url;
+        }
         
-        const trackCount = pl?.tracks?.total || 0;
-        const playlistName = pl?.name || 'Bez názvu';
+        const trackCount = pl.tracks?.total || 0;
+        const playlistName = pl.name || 'Bez názvu';
         
         div.innerHTML = `
             <img src="${img}" alt="${playlistName}">
@@ -154,7 +159,7 @@ function renderPlaylistSelection(playlists, slotIndex) {
     });
 }
 
-// --- MODÁLNÍ OKNO: PRIDAVANI HUDY (SEARCH) ---
+// --- MODÁLNÍ OKNO: PŘIDÁVÁNÍ HUDBY (SEARCH) ---
 document.getElementById('add-item-btn').addEventListener('click', () => {
     modals.search.classList.add('active');
 });
@@ -174,7 +179,7 @@ document.getElementById('search-input').addEventListener('input', (e) => {
         results.forEach(res => {
             const div = document.createElement('div');
             div.className = 'list-item';
-            const img = res.images?.length > 0 ? res.images[0].url : '';
+            const img = res.images?.length > 0 ? res.images[0].url : 'https://via.placeholder.com/150?text=Bez+Obrázku';
             div.innerHTML = `<img src="${img}"><span>${res.name}</span>`;
             div.onclick = () => {
                 savedMusic.push({ 
