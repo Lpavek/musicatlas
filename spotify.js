@@ -99,18 +99,19 @@ async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
-            // Snížený limit na 10 položek a URLParams bez mezer
-            const params = new URLSearchParams({
-                include_groups: 'album,single,appears_on',
-                limit: '10'
-            });
+            // Konstruktor URLSearchParams natvrdo ošetří limit na 10 a odstraní neplatné znaky
+            const params = new URLSearchParams();
+            params.append('include_groups', 'album,single,appears_on');
+            params.append('limit', '10');
 
-            const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`, {
+            const url = `https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`;
+
+            const response = await fetch(url, { 
                 headers: { Authorization: "Bearer " + token }
             });
 
             if (!response.ok) {
-                console.error("Spotify API vrhalo chybu:", response.status, await response.text());
+                console.error("Spotify API vrátilo chybu:", response.status, await response.text());
                 return [];
             }
 
