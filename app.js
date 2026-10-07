@@ -4,7 +4,7 @@ let savedMusic = JSON.parse(localStorage.getItem('atlas_music')) || [];
 let currentCategoryIndex = null;
 let currentMode = 'artists'; 
 let myUserPlaylists = []; 
-let currentArtistFocus = null; // ID interpreta v detailu
+let currentArtistFocus = null; 
 let currentReviewAlbumId = null;
 
 // DOM
@@ -26,11 +26,13 @@ const modals = {
 document.addEventListener('DOMContentLoaded', async () => {
     await SpotifyAPI.finishAuth();
     const token = await SpotifyAPI.getToken();
-    document.getElementById('login-btn').style.display = token ? 'none' : 'block';
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) loginBtn.style.display = token ? 'none' : 'block';
     renderDashboard();
 });
 
-document.getElementById('login-btn').addEventListener('click', () => SpotifyAPI.login());
+const loginBtn = document.getElementById('login-btn');
+if (loginBtn) loginBtn.addEventListener('click', () => SpotifyAPI.login());
 
 // View navigace
 document.querySelectorAll('.view-back-btn').forEach(btn => {
@@ -38,12 +40,15 @@ document.querySelectorAll('.view-back-btn').forEach(btn => {
 });
 
 function switchView(viewName) {
-    Object.values(views).forEach(v => v.classList.remove('active'));
-    views[viewName].classList.add('active');
+    Object.values(views).forEach(v => {
+        if (v) v.classList.remove('active');
+    });
+    if (views[viewName]) views[viewName].classList.add('active');
 }
 
 // --- DASHBOARD ---
 function renderDashboard() {
+    if (!dashboardGrid) return;
     dashboardGrid.innerHTML = '';
     for (let i = 0; i < 4; i++) {
         const cat = categories[i];
@@ -53,7 +58,8 @@ function renderDashboard() {
             tile.innerHTML = `<img src="${cat.image}" alt=""><h2>${cat.name}</h2>`;
             tile.onclick = () => {
                 currentCategoryIndex = i;
-                document.getElementById('cat-title').innerText = cat.name;
+                const titleEl = document.getElementById('cat-title');
+                if (titleEl) titleEl.innerText = cat.name;
                 switchView('category');
                 renderCategoryContent();
             };
@@ -65,78 +71,92 @@ function renderDashboard() {
     }
 }
 
-// --- KATEGORIE (Vykreslení interpretů) ---
-document.getElementById('toggle-artists').addEventListener('click', (e) => { currentMode = 'artists'; updateToggleUI(e.target); });
-document.getElementById('toggle-albums').addEventListener('click', (e) => { currentMode = 'albums'; updateToggleUI(e.target); });
+// --- KATEGORIE ---
+const toggleArt = document.getElementById('toggle-artists');
+const toggleAlb = document.getElementById('toggle-albums');
+
+if (toggleArt) toggleArt.addEventListener('click', (e) => { currentMode = 'artists'; updateToggleUI(e.target); });
+if (toggleAlb) toggleAlb.addEventListener('click', (e) => { currentMode = 'albums'; updateToggleUI(e.target); });
 
 function updateToggleUI(activeBtn) {
     document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-    activeBtn.classList.add('active');
+    if (activeBtn) activeBtn.classList.add('active');
     renderCategoryContent();
 }
 
 function renderCategoryContent() {
+    if (!contentGrid) return;
     contentGrid.innerHTML = '';
     const items = savedMusic.filter(item => item.catIndex === currentCategoryIndex && item.type === currentMode);
     
     if (items.length === 0) {
-        contentGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #666;">Prázdno.</div>`;
+        contentGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #666; margin-top: 40px;">Žádní ${currentMode === 'artists' ? 'interpreti' : 'alba'}. Přidej je tlačítkem nahoře.</div>`;
         return;
     }
 
     items.forEach(item => {
         if (item.type === 'artists') {
-            // VYKRESLENÍ PROFI KARTY INTERPRETA
+            // NOVÁ STRUKTURA KARTY INTERPRETA
             const card = document.createElement('div');
-            card.className = 'artist-card-pro';
+            card.className = 'artist-card';
             
-            // Vybereme z jeho diskografie první 4 alba pro náhled
-            const mainAlbums = (item.discography || []).filter(d => d.group === 'album').slice(0, 4);
-            let albumsHtml = mainAlbums.map(a => `<img src="${a.image}" class="ac-album-mini">`).join('');
+            // První 4 alba pro náhled
+            const previewAlbums = (item.discography || []).slice(0, 4);
+            let albumsHtml = previewAlbums.map(a => `<img src="${a.image}" class="album-mini-cover">`).join('');
             
+            // Doplnění prázdných míst, pokud má interpret méně než 4 alba
+            while (previewAlbums.length < 4) {
+                albumsHtml += `<div class="album-mini-cover"></div>`;
+                previewAlbums.push(null);
+            }
+
             card.innerHTML = `
-                <div class="ac-header">
-                    <img src="${item.image}">
-                    <h3>${item.name}</h3>
+                <div class="artist-header">
+                    <img src="${item.image}" class="artist-avatar" alt="${item.name}">
+                    <div class="artist-name">${item.name}</div>
                 </div>
-                <div class="ac-albums-grid">${albumsHtml}</div>
+                <div class="artist-albums-preview">
+                    ${albumsHtml}
+                </div>
             `;
             
             card.onclick = () => openArtistDetail(item);
             contentGrid.appendChild(card);
         } else {
-            // Normální album mimo interpreta
             const card = document.createElement('div');
-            card.className = 'item-card';
-            card.innerHTML = `<img src="${item.image}" style="border-radius:8px"><h3>${item.name}</h3>`;
+            card.className = 'album-card-standalone';
+            card.innerHTML = `<img src="${item.image}"><h3>${item.name}</h3>`;
             contentGrid.appendChild(card);
         }
     });
 }
 
-// --- DETAIL INTERPRETA (Odemykací grid) ---
+// --- DETAIL INTERPRETA ---
 const chkAlbum = document.getElementById('filter-album');
 const chkSingle = document.getElementById('filter-single');
 const chkFeature = document.getElementById('filter-features');
 
-[chkAlbum, chkSingle, chkFeature].forEach(chk => chk.addEventListener('change', renderArtistDiscography));
+[chkAlbum, chkSingle, chkFeature].forEach(chk => {
+    if (chk) chk.addEventListener('change', renderArtistDiscography);
+});
 
 function openArtistDetail(artistItem) {
     currentArtistFocus = artistItem;
-    document.getElementById('artist-detail-title').innerText = artistItem.name;
+    const titleEl = document.getElementById('artist-detail-title');
+    if (titleEl) titleEl.innerText = artistItem.name;
     switchView('artistDetail');
     renderArtistDiscography();
 }
 
 function renderArtistDiscography() {
-    if (!currentArtistFocus) return;
+    if (!currentArtistFocus || !discoGrid) return;
     discoGrid.innerHTML = '';
     
-    const showAlbum = chkAlbum.checked;
-    const showSingle = chkSingle.checked;
-    const showFeature = chkFeature.checked;
+    const showAlbum = chkAlbum ? chkAlbum.checked : true;
+    const showSingle = chkSingle ? chkSingle.checked : false;
+    const showFeature = chkFeature ? chkFeature.checked : false;
 
-    const filtered = currentArtistFocus.discography.filter(a => {
+    const filtered = (currentArtistFocus.discography || []).filter(a => {
         if (a.group === 'album' && showAlbum) return true;
         if (a.group === 'single' && showSingle) return true;
         if (a.group === 'appears_on' && showFeature) return true;
@@ -161,112 +181,130 @@ function renderArtistDiscography() {
     });
 }
 
-// --- HODNOCENÍ ALBA ---
+// --- REVIEW MODAL ---
 const revListened = document.getElementById('review-listened');
 const revRating = document.getElementById('review-rating');
 const revText = document.getElementById('review-text');
 
 function openReviewModal(album) {
     currentReviewAlbumId = album.id;
-    document.getElementById('review-cover').src = album.image;
-    document.getElementById('review-title').innerText = album.name;
+    const coverEl = document.getElementById('review-cover');
+    const titleEl = document.getElementById('review-title');
     
-    revListened.checked = album.listened;
-    revRating.value = album.rating || '';
-    revText.value = album.review || '';
+    if (coverEl) coverEl.src = album.image;
+    if (titleEl) titleEl.innerText = album.name;
+    
+    if (revListened) revListened.checked = album.listened;
+    if (revRating) revRating.value = album.rating || '';
+    if (revText) revText.value = album.review || '';
     
     toggleReviewInputs(album.listened);
-    modals.review.classList.add('active');
+    if (modals.review) modals.review.classList.add('active');
 }
 
-revListened.addEventListener('change', (e) => {
-    toggleReviewInputs(e.target.checked);
-});
+if (revListened) {
+    revListened.addEventListener('change', (e) => toggleReviewInputs(e.target.checked));
+}
 
 function toggleReviewInputs(enabled) {
-    revRating.disabled = !enabled;
-    revText.disabled = !enabled;
+    if (revRating) revRating.disabled = !enabled;
+    if (revText) revText.disabled = !enabled;
 }
 
-document.getElementById('save-review-btn').addEventListener('click', () => {
-    // Najdeme album v daném interpretovi a uložíme
-    const album = currentArtistFocus.discography.find(a => a.id === currentReviewAlbumId);
-    if (album) {
-        album.listened = revListened.checked;
-        album.rating = revListened.checked ? (revRating.value || null) : null;
-        album.review = revListened.checked ? (revText.value || "") : "";
-        localStorage.setItem('atlas_music', JSON.stringify(savedMusic));
-    }
-    modals.review.classList.remove('active');
-    renderArtistDiscography(); // Znovu vyrenderuje, aby problikla barva a fajfka
-});
+const saveRevBtn = document.getElementById('save-review-btn');
+if (saveRevBtn) {
+    saveRevBtn.addEventListener('click', () => {
+        if (currentArtistFocus && currentArtistFocus.discography) {
+            const album = currentArtistFocus.discography.find(a => a.id === currentReviewAlbumId);
+            if (album) {
+                album.listened = revListened.checked;
+                album.rating = revListened.checked ? (revRating.value || null) : null;
+                album.review = revListened.checked ? (revText.value || "") : "";
+                localStorage.setItem('atlas_music', JSON.stringify(savedMusic));
+            }
+        }
+        if (modals.review) modals.review.classList.remove('active');
+        renderArtistDiscography();
+    });
+}
 
-
-// --- PŘIDÁVÁNÍ DO KNIHOVNY (Search) ---
-document.getElementById('add-item-btn').addEventListener('click', () => {
-    modals.search.classList.add('active');
-});
+// --- SEARCH & ADD ---
+const addItemBtn = document.getElementById('add-item-btn');
+if (addItemBtn) {
+    addItemBtn.addEventListener('click', () => {
+        if (modals.search) modals.search.classList.add('active');
+    });
+}
 
 let searchTimeout;
-document.getElementById('search-input').addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    const query = e.target.value;
-    const type = document.querySelector('input[name="search-type"]:checked').value;
-    if (query.length < 2) return;
-    
-    searchTimeout = setTimeout(async () => {
-        const results = await SpotifyAPI.search(query, type);
-        const list = document.getElementById('search-results');
-        list.innerHTML = '';
+const searchInput = document.getElementById('search-input');
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const query = e.target.value;
+        const typeEl = document.querySelector('input[name="search-type"]:checked');
+        const type = typeEl ? typeEl.value : 'artist';
+        if (query.length < 2) return;
         
-        results.forEach(res => {
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            const img = res.images?.length > 0 ? res.images[0].url : 'https://via.placeholder.com/150';
-            div.innerHTML = `<img src="${img}"><span>${res.name}</span>`;
+        searchTimeout = setTimeout(async () => {
+            const results = await SpotifyAPI.search(query, type);
+            const list = document.getElementById('search-results');
+            if (!list) return;
+            list.innerHTML = '';
             
-            div.onclick = async () => {
-                // Pokud přidáváme interpreta, stáhneme celou diskografii
-                div.innerHTML = '<span>Stahuji diskografii...</span>';
+            results.forEach(res => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                const img = res.images?.length > 0 ? res.images[0].url : 'https://via.placeholder.com/150';
+                div.innerHTML = `<img src="${img}"><span>${res.name}</span>`;
                 
-                let discography = [];
-                if (type === 'artist') {
-                    discography = await SpotifyAPI.getArtistDiscography(res.id);
-                }
-                
-                savedMusic.push({ 
-                    catIndex: currentCategoryIndex, 
-                    type: type === 'artist' ? 'artists' : 'albums', 
-                    id: res.id, 
-                    name: res.name, 
-                    image: img,
-                    discography: discography // Tady se to uloží!
-                });
-                localStorage.setItem('atlas_music', JSON.stringify(savedMusic));
-                modals.search.classList.remove('active');
-                renderCategoryContent();
-            };
-            list.appendChild(div);
-        });
-    }, 500);
-});
+                div.onclick = async () => {
+                    div.innerHTML = '<span>Stahuji diskografii...</span>';
+                    let discography = [];
+                    if (type === 'artist') {
+                        discography = await SpotifyAPI.getArtistDiscography(res.id);
+                    }
+                    
+                    savedMusic.push({ 
+                        catIndex: currentCategoryIndex, 
+                        type: type === 'artist' ? 'artists' : 'albums', 
+                        id: res.id, 
+                        name: res.name, 
+                        image: img,
+                        discography: discography 
+                    });
+                    localStorage.setItem('atlas_music', JSON.stringify(savedMusic));
+                    if (modals.search) modals.search.classList.remove('active');
+                    renderCategoryContent();
+                };
+                list.appendChild(div);
+            });
+        }, 500);
+    });
+}
 
-// Zbytek (Modal playlisty atd.)
+// Playlist Modal
 async function openPlaylistModal(slotIndex) {
-    modals.playlist.classList.add('active');
-    document.getElementById('playlist-search-input').value = '';
-    document.getElementById('playlist-list').innerHTML = '<div style="padding: 20px; color: #888;">Načítám...</div>';
+    if (modals.playlist) modals.playlist.classList.add('active');
+    const input = document.getElementById('playlist-search-input');
+    const list = document.getElementById('playlist-list');
+    if (input) input.value = '';
+    if (list) list.innerHTML = '<div style="padding: 20px; color: #888;">Načítám...</div>';
+    
     myUserPlaylists = await SpotifyAPI.getUserPlaylists();
     renderPlaylistSelection(myUserPlaylists, slotIndex);
 
-    document.getElementById('playlist-search-input').oninput = (e) => {
-        const q = e.target.value.toLowerCase().trim();
-        renderPlaylistSelection(myUserPlaylists.filter(pl => (pl?.name||'').toLowerCase().includes(q)), slotIndex);
-    };
+    if (input) {
+        input.oninput = (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            renderPlaylistSelection(myUserPlaylists.filter(pl => (pl?.name||'').toLowerCase().includes(q)), slotIndex);
+        };
+    }
 }
 
 function renderPlaylistSelection(playlists, slotIndex) {
     const list = document.getElementById('playlist-list');
+    if (!list) return;
     list.innerHTML = '';
     playlists.forEach(pl => {
         if (!pl) return;
@@ -277,13 +315,14 @@ function renderPlaylistSelection(playlists, slotIndex) {
         div.onclick = () => {
             categories[slotIndex] = { name: pl.name, image: img, id: pl.id };
             localStorage.setItem('atlas_categories', JSON.stringify(categories));
-            modals.playlist.classList.remove('active');
+            if (modals.playlist) modals.playlist.classList.remove('active');
             renderDashboard();
         };
         list.appendChild(div);
     });
 }
 
+// Zavírání
 document.querySelectorAll('.close-modal').forEach(btn => {
     btn.addEventListener('click', (e) => e.target.closest('.modal').classList.remove('active'));
 });
