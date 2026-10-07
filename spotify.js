@@ -95,17 +95,29 @@ const SpotifyAPI = {
         return type === 'artist' ? data.artists.items : data.albums.items;
     },
     // Načte celou diskografii pro dané ID interpreta
+// Načte diskografii s opravenou URL bez mezer a nižším limitem (20)
     async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
-            const r = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album,single,appears_on&limit=50`, { headers: { Authorization: "Bearer " + token }});
-            const data = await r.json();
+            // Opraveno: žádné mezery mezi album,single,appears_on a snížený limit na 20
+            const url = `https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album,single,appears_on&limit=20`;
             
+            const r = await fetch(url, { 
+                headers: { Authorization: "Bearer " + token }
+            });
+            
+            if (!r.ok) {
+                console.error("Spotify API vrátilo chybu:", r.status, await r.text());
+                return [];
+            }
+
+            const data = await r.json();
             if (!data.items) return [];
 
             const unique = [];
             const seen = new Set();
+            
             data.items.forEach(item => {
                 if (item && !seen.has(item.name)) {
                     seen.add(item.name);
@@ -121,6 +133,7 @@ const SpotifyAPI = {
                     });
                 }
             });
+
             return unique.sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
         } catch (e) {
             console.error("Chyba při stahování diskografie:", e);
