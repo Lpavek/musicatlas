@@ -1,16 +1,23 @@
-// Data State
+// Aplikativní stav
 let categories = JSON.parse(localStorage.getItem('atlas_categories')) || [null, null, null, null];
 let savedMusic = JSON.parse(localStorage.getItem('atlas_music')) || []; 
 let currentCategoryIndex = null;
 let currentMode = 'artists'; // 'artists' nebo 'albums'
+let myUserPlaylists = []; // Paměť pro prohledávání playlistů
 
-// DOM Elements
-const views = { home: document.getElementById('home-view'), category: document.getElementById('category-view') };
+// DOM elementy
+const views = { 
+    home: document.getElementById('home-view'), 
+    category: document.getElementById('category-view') 
+};
 const dashboardGrid = document.getElementById('dashboard-grid');
 const contentGrid = document.getElementById('content-grid');
-const modals = { playlist: document.getElementById('modal-playlist'), search: document.getElementById('modal-search') };
+const modals = { 
+    playlist: document.getElementById('modal-playlist'), 
+    search: document.getElementById('modal-search') 
+};
 
-// Init
+// Inicializace po načtení
 document.addEventListener('DOMContentLoaded', async () => {
     await SpotifyAPI.finishAuth();
     const token = await SpotifyAPI.getToken();
@@ -20,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 document.getElementById('login-btn').addEventListener('click', () => SpotifyAPI.login());
 
-// --- DASHBOARD LOGIC ---
+// --- DOMOVSKÁ STRÁNKA (GRID 4 DLAŽDIC) ---
 function renderDashboard() {
     dashboardGrid.innerHTML = '';
     for (let i = 0; i < 4; i++) {
@@ -39,7 +46,7 @@ function renderDashboard() {
     }
 }
 
-// --- CATEGORY VIEW LOGIC ---
+// --- STRÁNKA KATEGORIE ---
 function openCategory(index) {
     currentCategoryIndex = index;
     const cat = categories[index];
@@ -50,12 +57,13 @@ function openCategory(index) {
 
 document.getElementById('back-btn').addEventListener('click', () => switchView('home'));
 
-// Toggle Interpreti / Alba
+// Přepínání módu: Interpreti / Alba
 document.getElementById('toggle-artists').addEventListener('click', (e) => {
     currentMode = 'artists';
     updateToggleUI(e.target);
     renderCategoryContent();
 });
+
 document.getElementById('toggle-albums').addEventListener('click', (e) => {
     currentMode = 'albums';
     updateToggleUI(e.target);
@@ -70,12 +78,14 @@ function updateToggleUI(activeBtn) {
 
 function renderCategoryContent() {
     contentGrid.innerHTML = '';
-    // Filtrace položek patřících do aktuální kategorie a aktuálního módu (interpret/album)
+    // Odfiltrovat položky patřící do otevřené kategorie a módu
     const items = savedMusic.filter(item => item.catIndex === currentCategoryIndex && item.type === currentMode);
     
-    // Zde bychom ideálně ještě přidali logiku: pokud jsem v módu 'Alba', ukaž všechna alba, která jsem si uložil, 
-    // PLUS teoreticky alba interpretů, co mám uložené. Pro zjednodušení teď bereme věci výslovně uložené.
-    
+    if (items.length === 0) {
+        contentGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #666; margin-top: 40px;">Zatím zde nemáš žádné ${currentMode === 'artists' ? 'interprety' : 'alba'}. Přidej je tlačítkem nahoře.</div>`;
+        return;
+    }
+
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'item-card';
@@ -84,20 +94,49 @@ function renderCategoryContent() {
     });
 }
 
-// --- MODALS & ADDING DATA ---
+// --- MODÁLNÍ OKNO: VÝBĚR PLAYLISTU PRO DLAŽDICI ---
 async function openPlaylistModal(slotIndex) {
     modals.playlist.classList.add('active');
     const list = document.getElementById('playlist-list');
-    list.innerHTML = 'Načítám tvé playlisty...';
+    const searchInput = document.getElementById('playlist-search-input');
     
-    const playlists = await SpotifyAPI.getUserPlaylists();
+    searchInput.value = '';
+    list.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Načítám všechny tvoje vlastní playlisty...</div>';
+    
+    // Načtení všech vlastních playlistů
+    myUserPlaylists = await SpotifyAPI.getUserPlaylists();
+    renderPlaylistSelection(myUserPlaylists, slotIndex);
+
+    // Vyhledávání v reálném čase podle názvu
+    searchInput.oninput = (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const filtered = myUserPlaylists.filter(pl => pl.name.toLowerCase().includes(query));
+        renderPlaylistSelection(filtered, slotIndex);
+    };
+}
+
+function renderPlaylistSelection(playlists, slotIndex) {
+    const list = document.getElementById('playlist-list');
     list.innerHTML = '';
+    
+    if (playlists.length === 0) {
+        list.innerHTML = '<div style="padding: 15px; color: #888; text-align: center;">Žádný playlist nenalezen.</div>';
+        return;
+    }
     
     playlists.forEach(pl => {
         const div = document.createElement('div');
         div.className = 'list-item';
-        const img = pl.images.length > 0 ? pl.images[0].url : '';
-        div.innerHTML = `<img src="${img}"><span>${pl.name}</span>`;
+        const img = (pl.images && pl.images.length > 0) ? pl.images[0].url : 'https://via.placeholder.com/150?text=Bez+Obrázku';
+        
+        div.innerHTML = `
+            <img src="${img}" alt="${pl.name}">
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-weight: bold; color: white;">${pl.name}</span>
+                <span style="font-size: 12px; color: #888;">${pl.tracks?.total || 0} skladeb</span>
+            </div>
+        `;
+        
         div.onclick = () => {
             categories[slotIndex] = { name: pl.name, image: img, id: pl.id };
             localStorage.setItem('atlas_categories', JSON.stringify(categories));
@@ -108,11 +147,11 @@ async function openPlaylistModal(slotIndex) {
     });
 }
 
+// --- MODÁLNÍ OKNO: PRIDAVANI HUDY (SEARCH) ---
 document.getElementById('add-item-btn').addEventListener('click', () => {
     modals.search.classList.add('active');
 });
 
-// Vyhledávání interpretů a alb
 let searchTimeout;
 document.getElementById('search-input').addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
@@ -131,7 +170,13 @@ document.getElementById('search-input').addEventListener('input', (e) => {
             const img = res.images?.length > 0 ? res.images[0].url : '';
             div.innerHTML = `<img src="${img}"><span>${res.name}</span>`;
             div.onclick = () => {
-                savedMusic.push({ catIndex: currentCategoryIndex, type: type, id: res.id, name: res.name, image: img });
+                savedMusic.push({ 
+                    catIndex: currentCategoryIndex, 
+                    type: type === 'artist' ? 'artists' : 'albums', 
+                    id: res.id, 
+                    name: res.name, 
+                    image: img 
+                });
                 localStorage.setItem('atlas_music', JSON.stringify(savedMusic));
                 modals.search.classList.remove('active');
                 renderCategoryContent();
@@ -141,12 +186,12 @@ document.getElementById('search-input').addEventListener('input', (e) => {
     }, 500);
 });
 
-// Univerzální zavírání modalů
+// Zavírání modalů
 document.querySelectorAll('.close-modal').forEach(btn => {
     btn.addEventListener('click', (e) => e.target.closest('.modal').classList.remove('active'));
 });
 
-// Utilities
+// Přepínání pohledů
 function switchView(viewName) {
     Object.values(views).forEach(v => v.classList.remove('active'));
     views[viewName].classList.add('active');
