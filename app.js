@@ -127,18 +127,25 @@ function renderPlaylistSelection(playlists, slotIndex) {
     playlists.forEach(pl => {
         const div = document.createElement('div');
         div.className = 'list-item';
-        const img = (pl.images && pl.images.length > 0) ? pl.images[0].url : 'https://via.placeholder.com/150?text=Bez+Obrázku';
+        
+        // BEZPEČNÁ KONTROLA: Bezpečně ověříme pl.images a pl.tracks
+        const img = (pl && pl.images && Array.isArray(pl.images) && pl.images.length > 0 && pl.images[0]?.url) 
+            ? pl.images[0].url 
+            : 'https://via.placeholder.com/150?text=Bez+Obrázku';
+        
+        const trackCount = pl?.tracks?.total || 0;
+        const playlistName = pl?.name || 'Bez názvu';
         
         div.innerHTML = `
-            <img src="${img}" alt="${pl.name}">
+            <img src="${img}" alt="${playlistName}">
             <div style="display: flex; flex-direction: column;">
-                <span style="font-weight: bold; color: white;">${pl.name}</span>
-                <span style="font-size: 12px; color: #888;">${pl.tracks?.total || 0} skladeb</span>
+                <span style="font-weight: bold; color: white;">${playlistName}</span>
+                <span style="font-size: 12px; color: #888;">${trackCount} skladeb</span>
             </div>
         `;
         
         div.onclick = () => {
-            categories[slotIndex] = { name: pl.name, image: img, id: pl.id };
+            categories[slotIndex] = { name: playlistName, image: img, id: pl.id };
             localStorage.setItem('atlas_categories', JSON.stringify(categories));
             modals.playlist.classList.remove('active');
             renderDashboard();
