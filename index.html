@@ -8,22 +8,20 @@
 </head>
 <body>
 
-    <!-- DOMOVSKÁ STRÁNKA (Dlaždice) -->
+    <!-- DOMOVSKÁ STRÁNKA -->
     <div id="home-view" class="view active">
         <header class="main-header">
             <h1>Můj Hudební Atlas</h1>
             <button id="login-btn" class="btn-primary">Přihlásit do Spotify</button>
         </header>
-        <div class="grid-dashboard" id="dashboard-grid">
-            <!-- 4 hlavní dlaždice se generují v JS -->
-        </div>
+        <div class="grid-dashboard" id="dashboard-grid"></div>
     </div>
 
-    <!-- STRÁNKA KATEGORIE (Uvnitř složky / playlistu) -->
+    <!-- STRÁNKA KATEGORIE -->
     <div id="category-view" class="view">
         <header class="cat-header">
             <div class="cat-header-left">
-                <button id="back-btn" class="btn-icon">← Zpět na přehled</button>
+                <button class="btn-icon view-back-btn" data-target="home">← Zpět na přehled</button>
                 <h1 id="cat-title">Kategorie</h1>
             </div>
             <div class="cat-header-right">
@@ -31,31 +29,70 @@
                     <button id="toggle-artists" class="toggle-btn active">Interpreti</button>
                     <button id="toggle-albums" class="toggle-btn">Alba</button>
                 </div>
-                <button id="add-item-btn" class="btn-primary">+ Přidat hudbu</button>
+                <button id="add-item-btn" class="btn-primary">+ Přidat</button>
             </div>
         </header>
-        
-        <!-- Grid pro interprety (kolečka) nebo alba (čtverce) -->
         <div id="content-grid" class="content-grid artists-mode"></div>
     </div>
 
-    <!-- MODAL: Výběr vlastního playlistu pro dlaždici -->
+    <!-- DETAIL INTERPRETA (Odemykání diskografie) -->
+    <div id="artist-detail-view" class="view">
+        <header class="cat-header">
+            <div class="cat-header-left">
+                <button class="btn-icon view-back-btn" data-target="category">← Zpět do kategorie</button>
+                <h1 id="artist-detail-title">Jméno interpreta</h1>
+            </div>
+            <div class="filter-checkboxes">
+                <label><input type="checkbox" id="filter-album" checked> Alba</label>
+                <label><input type="checkbox" id="filter-single"> Singly / EP</label>
+                <label><input type="checkbox" id="filter-features"> Spolupráce</label>
+            </div>
+        </header>
+        <!-- Zde budou zašedlá alba atd. -->
+        <div id="discography-grid" class="disco-grid"></div>
+    </div>
+
+    <!-- MODAL: HODNOCENÍ ALBA -->
+    <div id="modal-review" class="modal">
+        <div class="modal-content review-content">
+            <img id="review-cover" src="" alt="">
+            <div class="review-form">
+                <h2 id="review-title">Název alba</h2>
+                <div class="review-status">
+                    <label>
+                        <input type="checkbox" id="review-listened"> Poslechnuto (Odemknout)
+                    </label>
+                </div>
+                <div class="input-group">
+                    <label>Hodnocení (0 - 10)</label>
+                    <input type="number" id="review-rating" min="0" max="10" step="0.1" placeholder="Např. 8.5" disabled>
+                </div>
+                <div class="input-group">
+                    <label>Tvůj komentář</label>
+                    <textarea id="review-text" placeholder="Co si o tom myslíš?" disabled></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-close close-modal">Zrušit</button>
+                    <button id="save-review-btn" class="btn-primary">Uložit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PLAYLISTY -->
     <div id="modal-playlist" class="modal">
         <div class="modal-content">
-            <h2>Vyber playlist pro dlaždici</h2>
-            <p>Vyber si jeden ze svých vlastní vytvořených Spotify playlistů.</p>
-            
+            <h2>Vyber playlist</h2>
             <input type="text" id="playlist-search-input" placeholder="Hledat ve svých playlistech...">
-            
             <div id="playlist-list" class="list-container"></div>
             <button class="btn-close close-modal">Zrušit</button>
         </div>
     </div>
 
-    <!-- MODAL: Vyhledávání interpretů / alb -->
+    <!-- MODAL: HLEDÁNÍ -->
     <div id="modal-search" class="modal">
         <div class="modal-content">
-            <h2>Přidat do kategorie</h2>
+            <h2>Přidat hudbu</h2>
             <input type="text" id="search-input" placeholder="Hledat interpreta nebo album...">
             <div class="search-filters">
                 <label><input type="radio" name="search-type" value="artist" checked> Interpreti</label>
