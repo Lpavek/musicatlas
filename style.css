@@ -1,16 +1,36 @@
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-body { background-color: #121212; color: #fff; overflow-x: hidden; }
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+}
+
+body { 
+    background-color: #121212; 
+    color: #fff; 
+    overflow-x: hidden; 
+}
 
 /* Views */
 .view { display: none; padding: 40px; }
 .view.active { display: block; }
 
-/* Buttons & Headers */
+/* Headers & Buttons */
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
 .cat-header-left, .cat-header-right { display: flex; align-items: center; gap: 20px; }
 
-.btn-primary { background: #1db954; color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: transform 0.2s; }
+.btn-primary { 
+    background: #1db954; 
+    color: #000; 
+    border: none; 
+    padding: 10px 20px; 
+    border-radius: 20px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: transform 0.2s; 
+}
 .btn-primary:hover { transform: scale(1.05); }
+
 .btn-icon { background: transparent; color: #b3b3b3; border: none; font-size: 16px; cursor: pointer; }
 .btn-icon:hover { color: #fff; }
 
@@ -19,7 +39,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .toggle-btn { background: transparent; border: none; color: #b3b3b3; padding: 10px 20px; cursor: pointer; font-weight: bold; }
 .toggle-btn.active { background: #333; color: #fff; }
 
-/* Domů */
+/* Dashboard */
 .grid-dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; max-width: 1000px; margin: 0 auto; }
 .dash-tile { background: #282828; border-radius: 12px; height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; overflow: hidden; }
 .dash-tile.empty { border: 2px dashed #444; background: transparent; }
@@ -27,87 +47,137 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .dash-tile h2 { position: relative; z-index: 2; font-size: 28px; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
 .plus-icon { font-size: 60px; color: #444; }
 
-/* KARTA INTERPRETA (Nová verze 2x2 grid) */
-.content-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 30px; }
-
-.artist-card-pro { 
-    background: #1e1e1e; 
-    border-radius: 12px; 
-    padding: 15px; 
-    cursor: pointer; 
-    transition: background 0.2s, transform 0.2s;
-}
-.artist-card-pro:hover { background: #282828; transform: translateY(-5px); }
-
-.ac-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
-.ac-header img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #333; }
-.ac-header h3 { font-size: 18px; margin: 0; line-height: 1.2; word-break: break-word;}
-
-/* Fade grid alb uvnitř karty */
-.ac-albums-grid { 
+/* MAIN GRID INTERPRETŮ */
+.content-grid { 
     display: grid; 
-    grid-template-columns: 1fr 1fr; 
-    gap: 8px; 
-    position: relative; 
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+    gap: 25px; 
 }
-.ac-albums-grid::after {
+
+/* KARTA INTERPRETA */
+.artist-card {
+    background: #181818;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    border: 1px solid #282828;
+}
+
+.artist-card:hover {
+    background: #242424;
+    transform: translateY(-4px);
+}
+
+/* Hlavička: profilovka + název napravo */
+.artist-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.artist-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.artist-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mřížka alb s přechodem do ztracena */
+.artist-albums-preview {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    position: relative;
+    max-height: 230px;
+    overflow: hidden;
+}
+
+.artist-albums-preview::after {
     content: '';
     position: absolute;
-    bottom: -2px; left: 0; right: 0; height: 60px;
-    background: linear-gradient(to bottom, rgba(30,30,30,0) 0%, rgba(30,30,30,1) 100%);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: linear-gradient(to bottom, rgba(24,24,24,0) 0%, rgba(24,24,24,1) 100%);
     pointer-events: none;
 }
-/* Aby gradient pasoval i po najetí myši */
-.artist-card-pro:hover .ac-albums-grid::after {
-    background: linear-gradient(to bottom, rgba(40,40,40,0) 0%, rgba(40,40,40,1) 100%);
+
+.artist-card:hover .artist-albums-preview::after {
+    background: linear-gradient(to bottom, rgba(36,36,36,0) 0%, rgba(36,36,36,1) 100%);
 }
-.ac-album-mini { width: 100%; aspect-ratio: 1; border-radius: 4px; object-fit: cover; opacity: 0.8; }
 
+.album-mini-cover {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    object-fit: cover;
+    background: #282828;
+}
 
-/* DISKOGRAFIE GRID (Detail interpreta) */
+/* Karta samostatného alba */
+.album-card-standalone {
+    background: #181818;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+.album-card-standalone img {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    object-fit: cover;
+    margin-bottom: 8px;
+}
+
+/* DISKOGRAFIE (Detail) */
 .filter-checkboxes { display: flex; gap: 20px; }
 .filter-checkboxes label { color: #ccc; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 
-.disco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 30px; }
+.disco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 24px; }
 .disco-item { position: relative; cursor: pointer; transition: transform 0.2s; }
-.disco-item:hover { transform: scale(1.05); }
+.disco-item:hover { transform: scale(1.04); }
 
-/* Vypadá zamčeně */
-.disco-item.locked img { filter: grayscale(100%); opacity: 0.4; }
-.disco-item img { width: 100%; aspect-ratio: 1; border-radius: 8px; object-fit: cover; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: all 0.3s; }
-.disco-item h4 { margin-top: 10px; font-size: 14px; text-align: center; }
+.disco-item.locked img { filter: grayscale(100%); opacity: 0.35; }
+.disco-item img { width: 100%; aspect-ratio: 1; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+.disco-item h4 { margin-top: 8px; font-size: 13px; text-align: center; }
 
-/* Odemykací fajfka */
 .checkmark { 
-    position: absolute; top: -10px; right: -10px; 
-    background: #1db954; color: black; font-weight: bold; 
-    width: 30px; height: 30px; border-radius: 50%; 
+    position: absolute; top: -8px; right: -8px; 
+    background: #1db954; color: #000; font-weight: bold; 
+    width: 26px; height: 26px; border-radius: 50%; 
     display: flex; align-items: center; justify-content: center; 
-    box-shadow: 0 2px 10px rgba(0,0,0,0.5); 
-    opacity: 0; transform: scale(0); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-size: 14px;
+    opacity: 0; transform: scale(0); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 .disco-item.unlocked .checkmark { opacity: 1; transform: scale(1); }
-.rating-badge { position: absolute; bottom: 40px; left: 10px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: #f5c518;}
+.rating-badge { position: absolute; bottom: 36px; left: 8px; background: rgba(0,0,0,0.85); padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #f5c518;}
 
-/* Hodnotící modal */
-.review-content { flex-direction: row; width: 600px; gap: 20px; }
-.review-content img { width: 250px; height: 250px; border-radius: 8px; object-fit: cover; }
-.review-form { display: flex; flex-direction: column; flex: 1; }
-.review-status { margin-bottom: 20px; font-weight: bold; color: #1db954; }
-.input-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
-.input-group input, .input-group textarea { background: #333; border: none; padding: 10px; color: white; border-radius: 6px; font-family: inherit;}
-.input-group textarea { resize: vertical; min-height: 80px; }
-.input-group input:disabled, .input-group textarea:disabled { opacity: 0.5; cursor: not-allowed; }
-.modal-actions { display: flex; gap: 10px; margin-top: auto; justify-content: flex-end;}
-
-/* Ostatní modals */
+/* Modals */
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
 .modal.active { display: flex; }
-.modal-content { background: #282828; padding: 30px; border-radius: 12px; width: 500px; max-height: 80vh; display: flex; flex-direction: column; }
-#playlist-search-input, #search-input { width: 100%; padding: 12px; margin: 15px 0 10px 0; border-radius: 8px; border: 1px solid #444; background: #1e1e1e; color: white; outline: none; }
-.list-container { flex: 1; overflow-y: auto; margin: 10px 0 20px 0; display: flex; flex-direction: column; gap: 10px; max-height: 350px;}
-.list-item { display: flex; align-items: center; gap: 15px; padding: 10px; background: #333; border-radius: 8px; cursor: pointer; transition: background 0.2s;}
-.list-item:hover { background: #444; }
-.list-item img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; }
-.btn-close { background: transparent; color: #fff; border: 1px solid #555; padding: 10px; border-radius: 8px; cursor: pointer; }
+.modal-content { background: #282828; padding: 25px; border-radius: 12px; width: 480px; max-height: 80vh; display: flex; flex-direction: column; }
+.review-content { flex-direction: row; width: 550px; gap: 20px; }
+.review-content img { width: 200px; height: 200px; border-radius: 8px; object-fit: cover; }
+.review-form { display: flex; flex-direction: column; flex: 1; }
+.input-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.input-group input, .input-group textarea { background: #333; border: none; padding: 10px; color: white; border-radius: 6px; }
+.modal-actions { display: flex; gap: 10px; margin-top: auto; justify-content: flex-end;}
+#playlist-search-input, #search-input { width: 100%; padding: 12px; margin: 12px 0; border-radius: 8px; border: 1px solid #444; background: #1e1e1e; color: white; outline: none; }
+.list-container { flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; max-height: 320px;}
+.list-item { display: flex; align-items: center; gap: 12px; padding: 8px; background: #333; border-radius: 6px; cursor: pointer; }
+.list-item img { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; }
+.btn-close { background: transparent; color: #fff; border: 1px solid #555; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
 .search-filters { display: flex; gap: 15px; margin-bottom: 10px; }
