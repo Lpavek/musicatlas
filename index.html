@@ -35,7 +35,7 @@
         <div id="content-grid" class="content-grid artists-mode"></div>
     </div>
 
-    <!-- DETAIL INTERPRETA (Odemykání diskografie) -->
+    <!-- DETAIL INTERPRETA -->
     <div id="artist-detail-view" class="view">
         <header class="cat-header">
             <div class="cat-header-left">
@@ -45,10 +45,9 @@
             <div class="filter-checkboxes">
                 <label><input type="checkbox" id="filter-album" checked> Alba</label>
                 <label><input type="checkbox" id="filter-single"> Singly / EP</label>
-                <label><input type="checkbox" id="filter-features"> Spolupráce</label>
+                <label><input type="checkbox" id="filter-features"> Features</label>
             </div>
         </header>
-        <!-- Zde budou zašedlá alba atd. -->
         <div id="discography-grid" class="disco-grid"></div>
     </div>
 
@@ -60,7 +59,7 @@
                 <h2 id="review-title">Název alba</h2>
                 <div class="review-status">
                     <label>
-                        <input type="checkbox" id="review-listened"> Poslechnuto (Odemknout)
+                        <input type="checkbox" id="review-listened"> Poslechnuto
                     </label>
                 </div>
                 <div class="input-group">
@@ -68,7 +67,7 @@
                     <input type="number" id="review-rating" min="0" max="10" step="0.1" placeholder="Např. 8.5" disabled>
                 </div>
                 <div class="input-group">
-                    <label>Tvůj komentář</label>
+                    <label>Komentář</label>
                     <textarea id="review-text" placeholder="Co si o tom myslíš?" disabled></textarea>
                 </div>
                 <div class="modal-actions">
@@ -82,7 +81,7 @@
     <!-- MODAL: PLAYLISTY -->
     <div id="modal-playlist" class="modal">
         <div class="modal-content">
-            <h2>Vyber playlist</h2>
+            <h2>Vyber playlist pro dlaždici</h2>
             <input type="text" id="playlist-search-input" placeholder="Hledat ve svých playlistech...">
             <div id="playlist-list" class="list-container"></div>
             <button class="btn-close close-modal">Zrušit</button>
@@ -92,7 +91,7 @@
     <!-- MODAL: HLEDÁNÍ -->
     <div id="modal-search" class="modal">
         <div class="modal-content">
-            <h2>Přidat hudbu</h2>
+            <h2>Přidat do kategorie</h2>
             <input type="text" id="search-input" placeholder="Hledat interpreta nebo album...">
             <div class="search-filters">
                 <label><input type="radio" name="search-type" value="artist" checked> Interpreti</label>
