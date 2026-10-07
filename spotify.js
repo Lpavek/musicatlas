@@ -1,4 +1,4 @@
-const CLIENT_ID = "d12d1f6a79ab4d7fbdf00435566ed35d"; // VLOŽ SVOJE CLIENT ID
+const CLIENT_ID = "d12d1f6a79ab4d7fbdf00435566ed35d"; // ZDE DOPLŇ SVÉ ID Z DEVELOPER DASHBOARDU
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 const AUTH_KEY = "atlas_spotify_token";
 
@@ -15,15 +15,20 @@ const SpotifyAPI = {
     },
     async login() {
         if (!CLIENT_ID || CLIENT_ID === "TVOJE_CLIENT_ID_ZDE") { 
-            alert("Nezapomeň zevnitř souboru spotify.js nastavit tvoje Client ID!"); return; 
+            alert("Nezapomeň zevnitř souboru spotify.js nastavit tvoje Client ID!"); 
+            return; 
         }
         const verifier = this.rand();
         const challenge = await this.pkceChallenge(verifier);
         sessionStorage.setItem("spotify_verifier", verifier);
         
         const p = new URLSearchParams({
-            client_id: CLIENT_ID, response_type: "code", redirect_uri: REDIRECT_URI,
-            scope: "user-read-private playlist-read-private", code_challenge_method: "S256", code_challenge: challenge
+            client_id: CLIENT_ID, 
+            response_type: "code", 
+            redirect_uri: REDIRECT_URI,
+            scope: "user-read-private playlist-read-private", 
+            code_challenge_method: "S256", 
+            code_challenge: challenge
         });
         location.href = "https://accounts.spotify.com/authorize?" + p;
     },
@@ -34,38 +39,58 @@ const SpotifyAPI = {
         const verifier = sessionStorage.getItem("spotify_verifier");
         
         const p = new URLSearchParams({
-            client_id: CLIENT_ID, grant_type: "authorization_code", code: code,
-            redirect_uri: REDIRECT_URI, code_verifier: verifier
+            client_id: CLIENT_ID, 
+            grant_type: "authorization_code", 
+            code: code,
+            redirect_uri: REDIRECT_URI, 
+            code_verifier: verifier
         });
         try {
             const r = await fetch("https://accounts.spotify.com/api/token", {
-                method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: p
+                method: "POST", 
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }, 
+                body: p
             });
             const d = await r.json();
             if (d.access_token) {
                 localStorage.setItem(AUTH_KEY, JSON.stringify({ 
-                    access_token: d.access_token, expires_at: Date.now() + d.expires_in * 1000, refresh_token: d.refresh_token 
+                    access_token: d.access_token, 
+                    expires_at: Date.now() + d.expires_in * 1000, 
+                    refresh_token: d.refresh_token 
                 }));
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
-        } catch(e) { console.error("Auth error", e); }
+        } catch(e) { 
+            console.error("Auth error", e); 
+        }
     },
     async getToken() {
         const a = JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
         if (!a) return null;
         if (a.expires_at > Date.now() + 60000) return a.access_token;
         if (a.refresh_token) {
-            const p = new URLSearchParams({ client_id: CLIENT_ID, grant_type: "refresh_token", refresh_token: a.refresh_token });
+            const p = new URLSearchParams({ 
+                client_id: CLIENT_ID, 
+                grant_type: "refresh_token", 
+                refresh_token: a.refresh_token 
+            });
             try {
-                const r = await fetch("https://accounts.spotify.com/api/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: p });
+                const r = await fetch("https://accounts.spotify.com/api/token", { 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" }, 
+                    body: p 
+                });
                 const d = await r.json();
                 if (d.access_token) {
-                    a.access_token = d.access_token; a.expires_at = Date.now() + d.expires_in * 1000;
+                    a.access_token = d.access_token; 
+                    a.expires_at = Date.now() + d.expires_in * 1000;
                     if (d.refresh_token) a.refresh_token = d.refresh_token;
                     localStorage.setItem(AUTH_KEY, JSON.stringify(a));
                     return a.access_token;
                 }
-            } catch(e) { console.error("Refresh selhal", e); }
+            } catch(e) { 
+                console.error("Refresh selhal", e); 
+            }
         }
         return null;
     },
@@ -73,51 +98,62 @@ const SpotifyAPI = {
         const token = await this.getToken();
         if (!token) return [];
         try {
-            const userResponse = await fetch("https://api.spotify.com/v1/me", { headers: { Authorization: "Bearer " + token }});
+            const userResponse = await fetch("https://api.spotify.com/v1/me", { 
+                headers: { Authorization: "Bearer " + token }
+            });
             const userData = await userResponse.json();
             const myUserId = userData.id;
             let allPlaylists = [];
             let url = "https://api.spotify.com/v1/me/playlists?limit=50";
             while (url) {
-                const response = await fetch(url, { headers: { Authorization: "Bearer " + token }});
+                const response = await fetch(url, { 
+                    headers: { Authorization: "Bearer " + token }
+                });
                 const data = await response.json();
                 if (data.items) allPlaylists = allPlaylists.concat(data.items);
                 url = data.next;
             }
             return allPlaylists.filter(pl => pl && pl.owner && pl.owner.id === myUserId);
-        } catch (error) { return []; }
+        } catch (error) { 
+            return []; 
+        }
     },
     async search(query, type) {
         const token = await this.getToken();
         if (!token) return [];
-        const r = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=${type}&limit=10`, { headers: { Authorization: "Bearer " + token }});
+        const r = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=${type}&limit=10`, { 
+            headers: { Authorization: "Bearer " + token }
+        });
         const data = await r.json();
         return type === 'artist' ? data.artists.items : data.albums.items;
     },
-    // Načte celou diskografii pro dané ID interpreta
-// Načte diskografii s opravenou URL bez mezer a nižším limitem (20)
+
+    // BEZPEČNĚ OPRAVENÉ STAHOVÁNÍ DISKOGRAFIE
     async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
-            // Opraveno: žádné mezery mezi album,single,appears_on a snížený limit na 20
-            const url = `https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album,single,appears_on&limit=20`;
-            
-            const r = await fetch(url, { 
+            // Čistá URL s přesným kódováním bez mezer
+            const params = new URLSearchParams({
+                include_groups: 'album,single,appears_on',
+                limit: '50'
+            });
+
+            const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`, {
                 headers: { Authorization: "Bearer " + token }
             });
-            
-            if (!r.ok) {
-                console.error("Spotify API vrátilo chybu:", r.status, await r.text());
+
+            if (!response.ok) {
+                console.error("Spotify API error:", response.status, await response.text());
                 return [];
             }
 
-            const data = await r.json();
+            const data = await response.json();
             if (!data.items) return [];
 
             const unique = [];
             const seen = new Set();
-            
+
             data.items.forEach(item => {
                 if (item && !seen.has(item.name)) {
                     seen.add(item.name);
@@ -125,7 +161,7 @@ const SpotifyAPI = {
                         id: item.id,
                         name: item.name,
                         image: (item.images && item.images.length > 0) ? item.images[0].url : 'https://via.placeholder.com/150',
-                        group: item.album_group || 'album', 
+                        group: item.album_group || 'album',
                         release_date: item.release_date || '2000-01-01',
                         listened: false,
                         rating: null,
@@ -134,6 +170,7 @@ const SpotifyAPI = {
                 }
             });
 
+            // Seřadíme od nejnovějšího vydání po nejstarší
             return unique.sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
         } catch (e) {
             console.error("Chyba při stahování diskografie:", e);
