@@ -7,7 +7,7 @@ let myUserPlaylists = [];
 let currentArtistFocus = null; 
 let currentReviewAlbumId = null;
 
-// DOM
+// DOM Elementy
 const views = { 
     home: document.getElementById('home-view'), 
     category: document.getElementById('category-view'),
@@ -34,15 +34,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 const loginBtn = document.getElementById('login-btn');
 if (loginBtn) loginBtn.addEventListener('click', () => SpotifyAPI.login());
 
-// View navigace
+// Navigace zpět
 document.querySelectorAll('.view-back-btn').forEach(btn => {
     btn.addEventListener('click', (e) => switchView(e.target.dataset.target));
 });
 
 function switchView(viewName) {
-    Object.values(views).forEach(v => {
-        if (v) v.classList.remove('active');
-    });
+    Object.values(views).forEach(v => { if (v) v.classList.remove('active'); });
     if (views[viewName]) views[viewName].classList.add('active');
 }
 
@@ -71,7 +69,7 @@ function renderDashboard() {
     }
 }
 
-// --- KATEGORIE ---
+// --- STRÁNKA KATEGORIE ---
 const toggleArt = document.getElementById('toggle-artists');
 const toggleAlb = document.getElementById('toggle-albums');
 
@@ -96,15 +94,14 @@ function renderCategoryContent() {
 
     items.forEach(item => {
         if (item.type === 'artists') {
-            // NOVÁ STRUKTURA KARTY INTERPRETA
             const card = document.createElement('div');
             card.className = 'artist-card';
             
-            // První 4 alba pro náhled
-            const previewAlbums = (item.discography || []).slice(0, 4);
+            // Bezpečná kontrola discography
+            const disco = Array.isArray(item.discography) ? item.discography : [];
+            const previewAlbums = disco.slice(0, 4);
             let albumsHtml = previewAlbums.map(a => `<img src="${a.image}" class="album-mini-cover">`).join('');
             
-            // Doplnění prázdných míst, pokud má interpret méně než 4 alba
             while (previewAlbums.length < 4) {
                 albumsHtml += `<div class="album-mini-cover"></div>`;
                 previewAlbums.push(null);
@@ -131,7 +128,7 @@ function renderCategoryContent() {
     });
 }
 
-// --- DETAIL INTERPRETA ---
+// --- DETAIL INTERPRETA (DISKOGRAFIE) ---
 const chkAlbum = document.getElementById('filter-album');
 const chkSingle = document.getElementById('filter-single');
 const chkFeature = document.getElementById('filter-features');
@@ -142,6 +139,11 @@ const chkFeature = document.getElementById('filter-features');
 
 function openArtistDetail(artistItem) {
     currentArtistFocus = artistItem;
+    // Pojistka pro stará data
+    if (!Array.isArray(currentArtistFocus.discography)) {
+        currentArtistFocus.discography = [];
+    }
+    
     const titleEl = document.getElementById('artist-detail-title');
     if (titleEl) titleEl.innerText = artistItem.name;
     switchView('artistDetail');
@@ -152,11 +154,18 @@ function renderArtistDiscography() {
     if (!currentArtistFocus || !discoGrid) return;
     discoGrid.innerHTML = '';
     
+    const disco = Array.isArray(currentArtistFocus.discography) ? currentArtistFocus.discography : [];
+
+    if (disco.length === 0) {
+        discoGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #888; margin-top: 40px;">Žádná alba nebyla načtena. Zkus interpreta odebrat a přidat znovu.</div>`;
+        return;
+    }
+
     const showAlbum = chkAlbum ? chkAlbum.checked : true;
     const showSingle = chkSingle ? chkSingle.checked : false;
     const showFeature = chkFeature ? chkFeature.checked : false;
 
-    const filtered = (currentArtistFocus.discography || []).filter(a => {
+    const filtered = disco.filter(a => {
         if (a.group === 'album' && showAlbum) return true;
         if (a.group === 'single' && showSingle) return true;
         if (a.group === 'appears_on' && showFeature) return true;
@@ -214,7 +223,7 @@ function toggleReviewInputs(enabled) {
 const saveRevBtn = document.getElementById('save-review-btn');
 if (saveRevBtn) {
     saveRevBtn.addEventListener('click', () => {
-        if (currentArtistFocus && currentArtistFocus.discography) {
+        if (currentArtistFocus && Array.isArray(currentArtistFocus.discography)) {
             const album = currentArtistFocus.discography.find(a => a.id === currentReviewAlbumId);
             if (album) {
                 album.listened = revListened.checked;
@@ -228,7 +237,7 @@ if (saveRevBtn) {
     });
 }
 
-// --- SEARCH & ADD ---
+// --- SEARCH & PŘIDÁNÍ ---
 const addItemBtn = document.getElementById('add-item-btn');
 if (addItemBtn) {
     addItemBtn.addEventListener('click', () => {
@@ -259,7 +268,8 @@ if (searchInput) {
                 div.innerHTML = `<img src="${img}"><span>${res.name}</span>`;
                 
                 div.onclick = async () => {
-                    div.innerHTML = '<span>Stahuji diskografii...</span>';
+                    div.innerHTML = '<span style="color:#1db954; font-weight:bold;">Načítám celou diskografii...</span>';
+                    
                     let discography = [];
                     if (type === 'artist') {
                         discography = await SpotifyAPI.getArtistDiscography(res.id);
