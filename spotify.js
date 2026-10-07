@@ -1,4 +1,4 @@
-const CLIENT_ID = "TVOJE_CLIENT_ID_ZDE"; // VLOŽ SVOJE CLIENT ID
+const CLIENT_ID = "d12d1f6a79ab4d7fbdf00435566ed35d"; // VLOŽ SVOJE CLIENT ID
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 const AUTH_KEY = "atlas_spotify_token";
 
