@@ -1,4 +1,4 @@
-const CLIENT_ID = "TVOJE_CLIENT_ID_ZDE"; // ZDE DOPLŇ SVÉ ID
+const CLIENT_ID = "TVOJE_CLIENT_ID_ZDE"; // VLOŽ SVOJE CLIENT ID
 const REDIRECT_URI = window.location.origin + window.location.pathname;
 const AUTH_KEY = "atlas_spotify_token";
 
@@ -94,33 +94,37 @@ const SpotifyAPI = {
         const data = await r.json();
         return type === 'artist' ? data.artists.items : data.albums.items;
     },
-    // NOVÁ FUNKCE: Stáhne kompletní diskografii
+    // Načte celou diskografii pro dané ID interpreta
     async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
-        // Stáhne najednou alba, singly (vč. EP) a spolupráce
-        const r = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album,single,appears_on&limit=50`, { headers: { Authorization: "Bearer " + token }});
-        const data = await r.json();
-        
-        // Odfiltrujeme duplikáty (často tam je stejné album vícekrát)
-        const unique = [];
-        const seen = new Set();
-        data.items.forEach(item => {
-            if (!seen.has(item.name)) {
-                seen.add(item.name);
-                unique.push({
-                    id: item.id,
-                    name: item.name,
-                    image: item.images.length > 0 ? item.images[0].url : 'https://via.placeholder.com/150',
-                    group: item.album_group, // 'album', 'single' (EP), 'appears_on'
-                    release_date: item.release_date,
-                    listened: false,
-                    rating: null,
-                    review: ""
-                });
-            }
-        });
-        // Seřadíme od nejnovějšího
-        return unique.sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
+        try {
+            const r = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album,single,appears_on&limit=50`, { headers: { Authorization: "Bearer " + token }});
+            const data = await r.json();
+            
+            if (!data.items) return [];
+
+            const unique = [];
+            const seen = new Set();
+            data.items.forEach(item => {
+                if (item && !seen.has(item.name)) {
+                    seen.add(item.name);
+                    unique.push({
+                        id: item.id,
+                        name: item.name,
+                        image: (item.images && item.images.length > 0) ? item.images[0].url : 'https://via.placeholder.com/150',
+                        group: item.album_group || 'album', 
+                        release_date: item.release_date || '2000-01-01',
+                        listened: false,
+                        rating: null,
+                        review: ""
+                    });
+                }
+            });
+            return unique.sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
+        } catch (e) {
+            console.error("Chyba při stahování diskografie:", e);
+            return [];
+        }
     }
 };
