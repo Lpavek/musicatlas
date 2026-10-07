@@ -15,16 +15,16 @@
             <button id="login-btn" class="btn-primary">Přihlásit do Spotify</button>
         </header>
         <div class="grid-dashboard" id="dashboard-grid">
-            <!-- Dlaždice se generují dynamicky v JS -->
+            <!-- 4 hlavní dlaždice se generují v JS -->
         </div>
     </div>
 
-    <!-- STRÁNKA KATEGORIE (Uvnitř složky) -->
+    <!-- STRÁNKA KATEGORIE (Uvnitř složky / playlistu) -->
     <div id="category-view" class="view">
         <header class="cat-header">
             <div class="cat-header-left">
-                <button id="back-btn" class="btn-icon">← Zpět</button>
-                <h1 id="cat-title">Název kategorie</h1>
+                <button id="back-btn" class="btn-icon">← Zpět na přehled</button>
+                <h1 id="cat-title">Kategorie</h1>
             </div>
             <div class="cat-header-right">
                 <div class="view-toggle">
@@ -39,11 +39,14 @@
         <div id="content-grid" class="content-grid artists-mode"></div>
     </div>
 
-    <!-- MODAL: Výběr playlistu pro dlaždici -->
+    <!-- MODAL: Výběr vlastního playlistu pro dlaždici -->
     <div id="modal-playlist" class="modal">
         <div class="modal-content">
             <h2>Vyber playlist pro dlaždici</h2>
-            <p>Vyber si jeden ze svých Spotify playlistů. Použijeme jeho název a obrázek.</p>
+            <p>Vyber si jeden ze svých vlastní vytvořených Spotify playlistů.</p>
+            
+            <input type="text" id="playlist-search-input" placeholder="Hledat ve svých playlistech...">
+            
             <div id="playlist-list" class="list-container"></div>
             <button class="btn-close close-modal">Zrušit</button>
         </div>
