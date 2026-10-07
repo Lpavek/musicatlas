@@ -129,31 +129,34 @@ const SpotifyAPI = {
     },
 
     // BEZPEČNĚ OPRAVENÉ STAHOVÁNÍ DISKOGRAFIE
+    // Zaručeně opravená funkce bez mezer v URL
     async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
-            // Čistá URL s přesným kódováním bez mezer
-            const params = new URLSearchParams({
-                include_groups: 'album,single,appears_on',
-                limit: '50'
-            });
+            // URLSearchParams zaručí přesné formátování bez mezer
+            const params = new URLSearchParams();
+            params.append('include_groups', 'album,single,appears_on');
+            params.append('limit', '50');
 
-            const response = await fetch(`https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`, {
+            const url = `https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`;
+            
+            const r = await fetch(url, { 
                 headers: { Authorization: "Bearer " + token }
             });
-
-            if (!response.ok) {
-                console.error("Spotify API error:", response.status, await response.text());
+            
+            if (!r.ok) {
+                const errText = await r.text();
+                console.error("Spotify API vrhalo chybu:", r.status, errText);
                 return [];
             }
 
-            const data = await response.json();
+            const data = await r.json();
             if (!data.items) return [];
 
             const unique = [];
             const seen = new Set();
-
+            
             data.items.forEach(item => {
                 if (item && !seen.has(item.name)) {
                     seen.add(item.name);
@@ -161,7 +164,7 @@ const SpotifyAPI = {
                         id: item.id,
                         name: item.name,
                         image: (item.images && item.images.length > 0) ? item.images[0].url : 'https://via.placeholder.com/150',
-                        group: item.album_group || 'album',
+                        group: item.album_group || 'album', 
                         release_date: item.release_date || '2000-01-01',
                         listened: false,
                         rating: null,
@@ -170,7 +173,6 @@ const SpotifyAPI = {
                 }
             });
 
-            // Seřadíme od nejnovějšího vydání po nejstarší
             return unique.sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
         } catch (e) {
             console.error("Chyba při stahování diskografie:", e);
