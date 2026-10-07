@@ -99,10 +99,10 @@ async getArtistDiscography(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
-            // Konstruktor URLSearchParams natvrdo ošetří limit na 10 a odstraní neplatné znaky
+            // MAXIMÁLNÍ POVOLENÝ LIMIT PRO include_groups JE 20
             const params = new URLSearchParams();
             params.append('include_groups', 'album,single,appears_on');
-            params.append('limit', '10');
+            params.append('limit', '20');
 
             const url = `https://api.spotify.com/v1/artists/${artistId}/albums?${params.toString()}`;
 
