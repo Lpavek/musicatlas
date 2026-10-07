@@ -1,40 +1,18 @@
-* { 
-    box-sizing: border-box; 
-    margin: 0; 
-    padding: 0; 
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { background-color: #121212; color: #fff; overflow-x: hidden; }
 
-body { 
-    background-color: #121212; 
-    color: #fff; 
-    overflow-x: hidden; 
-}
-
-/* Views */
 .view { display: none; padding: 40px; }
 .view.active { display: block; }
 
-/* Headers & Buttons */
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
 .cat-header-left, .cat-header-right { display: flex; align-items: center; gap: 20px; }
 
-.btn-primary { 
-    background: #1db954; 
-    color: #000; 
-    border: none; 
-    padding: 10px 20px; 
-    border-radius: 20px; 
-    font-weight: bold; 
-    cursor: pointer; 
-    transition: transform 0.2s; 
-}
+.btn-primary { background: #1db954; color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: transform 0.2s; }
 .btn-primary:hover { transform: scale(1.05); }
 
 .btn-icon { background: transparent; color: #b3b3b3; border: none; font-size: 16px; cursor: pointer; }
 .btn-icon:hover { color: #fff; }
 
-/* Toggle */
 .view-toggle { background: #242424; border-radius: 30px; display: flex; overflow: hidden; }
 .toggle-btn { background: transparent; border: none; color: #b3b3b3; padding: 10px 20px; cursor: pointer; font-weight: bold; }
 .toggle-btn.active { background: #333; color: #fff; }
@@ -47,123 +25,53 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .dash-tile h2 { position: relative; z-index: 2; font-size: 28px; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
 .plus-icon { font-size: 60px; color: #444; }
 
-/* MAIN GRID INTERPRETŮ */
-.content-grid { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
-    gap: 25px; 
-}
+/* SEZNAM INTERPRETŮ (Čistá kruhová karta) */
+.content-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 30px; }
 
-/* KARTA INTERPRETA */
-.artist-card {
+.artist-simple-card {
     background: #181818;
     border-radius: 12px;
-    padding: 16px;
+    padding: 20px;
+    text-align: center;
     cursor: pointer;
     transition: background 0.2s, transform 0.2s;
     border: 1px solid #282828;
 }
+.artist-simple-card:hover { background: #242424; transform: translateY(-5px); }
 
-.artist-card:hover {
-    background: #242424;
-    transform: translateY(-4px);
-}
-
-/* Hlavička: profilovka + název napravo */
-.artist-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.artist-avatar {
-    width: 48px;
-    height: 48px;
+.artist-simple-card img {
+    width: 130px;
+    height: 130px;
     border-radius: 50%;
     object-fit: cover;
-    flex-shrink: 0;
+    margin-bottom: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
 }
 
-.artist-name {
-    font-size: 18px;
-    font-weight: 700;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Mřížka alb s přechodem do ztracena */
-.artist-albums-preview {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    position: relative;
-    max-height: 230px;
-    overflow: hidden;
-}
-
-.artist-albums-preview::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 70px;
-    background: linear-gradient(to bottom, rgba(24,24,24,0) 0%, rgba(24,24,24,1) 100%);
-    pointer-events: none;
-}
-
-.artist-card:hover .artist-albums-preview::after {
-    background: linear-gradient(to bottom, rgba(36,36,36,0) 0%, rgba(36,36,36,1) 100%);
-}
-
-.album-mini-cover {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 6px;
-    object-fit: cover;
-    background: #282828;
-}
-
-/* Karta samostatného alba */
-.album-card-standalone {
-    background: #181818;
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-}
-.album-card-standalone img {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 6px;
-    object-fit: cover;
-    margin-bottom: 8px;
-}
+.artist-simple-card h3 { font-size: 18px; font-weight: bold; color: #fff; }
 
 /* DISKOGRAFIE (Detail) */
 .filter-checkboxes { display: flex; gap: 20px; }
 .filter-checkboxes label { color: #ccc; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 
-.disco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 24px; }
+.disco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; }
 .disco-item { position: relative; cursor: pointer; transition: transform 0.2s; }
 .disco-item:hover { transform: scale(1.04); }
 
 .disco-item.locked img { filter: grayscale(100%); opacity: 0.35; }
 .disco-item img { width: 100%; aspect-ratio: 1; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-.disco-item h4 { margin-top: 8px; font-size: 13px; text-align: center; }
+.disco-item h4 { margin-top: 8px; font-size: 14px; text-align: center; color: #ddd; }
 
 .checkmark { 
     position: absolute; top: -8px; right: -8px; 
     background: #1db954; color: #000; font-weight: bold; 
-    width: 26px; height: 26px; border-radius: 50%; 
+    width: 28px; height: 28px; border-radius: 50%; 
     display: flex; align-items: center; justify-content: center; 
     font-size: 14px;
     opacity: 0; transform: scale(0); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 .disco-item.unlocked .checkmark { opacity: 1; transform: scale(1); }
-.rating-badge { position: absolute; bottom: 36px; left: 8px; background: rgba(0,0,0,0.85); padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #f5c518;}
+.rating-badge { position: absolute; bottom: 38px; left: 8px; background: rgba(0,0,0,0.85); padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #f5c518;}
 
 /* Modals */
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
