@@ -252,7 +252,7 @@ h1 {
    ========================================================= */
 .disco-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 42px 34px;
 }
 
@@ -266,11 +266,10 @@ h1 {
     --disc-angle: 35deg;
 }
 
-/* 3D Scéna s prostorem vpravo pro vysunutý CD disk */
 .cd-stage {
     position: relative;
     width: 100%;
-    aspect-ratio: 1.14 / 1;
+    aspect-ratio: 1.15 / 1;
     perspective: 1000px;
     display: flex;
     align-items: center;
@@ -278,14 +277,13 @@ h1 {
 
 .cd-3d-rig {
     position: relative;
-    width: 86%;
+    width: 85%;
     aspect-ratio: 1 / 1;
     transform-style: preserve-3d;
     transform: translateZ(0px) rotateX(var(--rx)) rotateY(var(--ry)) scale(0.985);
     transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Poslechnuté album sedí v prostoru o kousek blíž ke kameře */
 .disco-item.listened .cd-3d-rig {
     transform: translateZ(6px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1);
 }
@@ -295,38 +293,75 @@ h1 {
     transition: transform 0.1s ease-out;
 }
 
-/* VYKUKUJÍCÍ IRIDESCENT CD DISK */
-.cd-disc {
+/* SLOT PRO VYSUNUTÍ CD Z KRABIČKY */
+.cd-disc-slot {
     position: absolute;
     top: 3.5%;
     right: 2%;
     width: 93%;
     height: 93%;
-    border-radius: 50%;
-    transform: translateZ(-8px) translateX(0%) rotate(0deg);
+    transform: translateZ(-8px) translateX(0%);
     opacity: 0;
     pointer-events: none;
     transition:
         transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
         opacity 0.4s ease;
+}
+
+.disco-item.listened .cd-disc-slot {
+    opacity: 1;
+    transform: translateZ(-8px) translateX(24%);
+}
+
+.disco-item.listened:hover .cd-disc-slot {
+    transform: translateZ(-6px) translateX(38%);
+}
+
+.disco-item.just-unboxed .cd-disc-slot {
+    animation: cd-eject-slot 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes cd-eject-slot {
+    0% {
+        opacity: 0.4;
+        transform: translateZ(-8px) translateX(0%);
+    }
+    55% {
+        opacity: 1;
+        transform: translateZ(-6px) translateX(36%);
+    }
+    100% {
+        opacity: 1;
+        transform: translateZ(-8px) translateX(24%);
+    }
+}
+
+/* SAMOTNÝ ROTUJÍCÍ CD DISK S POPSANÝM POVRCHEM FIXOU */
+.cd-disc {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    transform: rotate(22deg);
     background:
-        /* Středový průhledný prstenec a upínací trn */
+        /* Středový průhledný prstenec */
         radial-gradient(circle at center,
             rgba(13, 13, 13, 0.96) 0 11%,
-            rgba(255, 255, 255, 0.5) 11.4% 12.6%,
+            rgba(255, 255, 255, 0.55) 11.4% 12.6%,
             rgba(35, 35, 38, 0.88) 13% 18.5%,
             rgba(255, 255, 255, 0.35) 19% 20.2%,
             transparent 20.8%
         ),
-        /* Jemný laserový odlesk na hraně */
+        /* Světelný odlesk na polykarbonátu */
         radial-gradient(circle at 72% 32%,
-            rgba(255, 255, 255, 0.42) 0%,
+            rgba(255, 255, 255, 0.45) 0%,
             transparent 48%
         ),
-        /* Dynamická difrakce reagující na úhel náklonu (--disc-angle) */
+        /* Iridescent spektrum reagující na náklon */
         conic-gradient(
             from var(--disc-angle),
-            #c5cbd4 0deg,
+            #c7cdd6 0deg,
             #ffffff 28deg,
             #96b4d6 62deg,
             #d9b3da 104deg,
@@ -335,20 +370,21 @@ h1 {
             #ffffff 222deg,
             #aeb9ce 265deg,
             #e1b5c7 310deg,
-            #c5cbd4 360deg
+            #c7cdd6 360deg
         );
     box-shadow:
-        inset 0 0 0 1.5px rgba(255, 255, 255, 0.7),
-        inset 0 0 16px rgba(0, 0, 0, 0.38),
-        0 12px 26px rgba(0, 0, 0, 0.8);
+        inset 0 0 0 1.5px rgba(255, 255, 255, 0.72),
+        inset 0 0 16px rgba(0, 0, 0, 0.35),
+        0 12px 26px rgba(0, 0, 0, 0.82);
 }
 
-/* Datové stopy na povrchu disku */
+/* Jemné datové stopy */
 .cd-disc::after {
     content: "";
     position: absolute;
     inset: 21%;
     border-radius: 50%;
+    pointer-events: none;
     background: repeating-radial-gradient(
         circle at center,
         rgba(255, 255, 255, 0.09) 0px,
@@ -358,36 +394,44 @@ h1 {
     );
 }
 
-/* Klidový stav poslechnuté desky: disk decentně vykukuje */
-.disco-item.listened .cd-disc {
-    opacity: 1;
-    transform: translateZ(-8px) translateX(21%) rotate(16deg);
-}
-
-/* Hover stav poslechnuté desky: plynulé vysunutí a pootočení s setrvačností */
+/* Plynulé otáčení disku při najetí myší */
 .disco-item.listened:hover .cd-disc {
-    transform: translateZ(-6px) translateX(34%) rotate(54deg);
-    transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: cd-spin 3.8s linear infinite;
 }
 
-/* Jednorázová animace vysunutí při čerstvém označení "Poslechnuto" */
-.disco-item.just-unboxed .cd-disc {
-    animation: cd-eject-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes cd-spin {
+    from {
+        transform: rotate(22deg);
+    }
+    to {
+        transform: rotate(382deg);
+    }
 }
 
-@keyframes cd-eject-reveal {
-    0% {
-        opacity: 0.4;
-        transform: translateZ(-8px) translateX(0%) rotate(-35deg);
-    }
-    55% {
-        opacity: 1;
-        transform: translateZ(-6px) translateX(33%) rotate(34deg);
-    }
-    100% {
-        opacity: 1;
-        transform: translateZ(-8px) translateX(21%) rotate(16deg);
-    }
+/* RUČNĚ PSANÝ POPIS FIXOU NA CD */
+.cd-marker-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.cd-marker-album {
+    font-family: 'Caveat', cursive;
+    font-size: 16.5px;
+    font-weight: 700;
+    fill: rgba(16, 16, 20, 0.86);
+    letter-spacing: 0.4px;
+}
+
+.cd-marker-artist {
+    font-family: 'Caveat', cursive;
+    font-size: 14px;
+    font-weight: 600;
+    fill: rgba(24, 24, 30, 0.76);
+    letter-spacing: 0.6px;
 }
 
 /* HLAVNÍ PLASTOVÁ KRABIČKA (JEWEL CASE) */
@@ -442,7 +486,7 @@ h1 {
     background: #111;
 }
 
-/* NEPOSLECHNUTO: -30 % vizuální živosti (utlumená sytost a jas pod fólií) */
+/* NEPOSLECHNUTO: -30 % vizuální živosti */
 .cd-booklet img {
     width: 100%;
     height: 100%;
@@ -456,7 +500,7 @@ h1 {
     filter: saturate(0.82) brightness(0.91) contrast(0.97);
 }
 
-/* POSLECHNUTO: 100 % plná živost a kontrast tisku */
+/* POSLECHNUTO: 100 % živost */
 .disco-item.listened .cd-booklet img {
     filter: saturate(1.03) brightness(1) contrast(1.02);
 }
@@ -506,9 +550,7 @@ h1 {
     bottom: 3px;
 }
 
-/* =========================================================
-   STAV 1: NEPOSLECHNUTO -> ZATAVENÁ FÓLIE + HYPE STICKER
-   ========================================================= */
+/* STAV 1: NEPOSLECHNUTO -> ZATAVENÁ FÓLIE + HYPE STICKER */
 .cd-shrinkwrap {
     position: absolute;
     inset: 0;
@@ -552,9 +594,7 @@ h1 {
     color: rgba(255, 255, 255, 0.62);
 }
 
-/* =========================================================
-   STAV 2: POSLECHNUTO -> ROZBALENO + JAPONSKÝ OBI PÁSEK
-   ========================================================= */
+/* STAV 2: POSLECHNUTO -> ROZBALENO + JAPONSKÝ OBI PÁSEK */
 .cd-obi {
     position: absolute;
     top: 0;
@@ -605,7 +645,7 @@ h1 {
 /* POPISKY POD CD KRABIČKOU */
 .disco-meta {
     margin-top: 10px;
-    padding-right: 14%;
+    padding-right: 15%;
 }
 
 .disco-item h4 {
