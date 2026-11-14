@@ -12,7 +12,6 @@ let currentReviewContext = "artist"; // "artist" | "standalone"
 let availableArtistReleases = [];
 let pickerGroupFilter = "all";
 let freshlyUnboxedAlbumId = null;
-let cdRenderCounter = 0;
 
 // DOM
 const views = {
@@ -60,6 +59,94 @@ function escapeHtml(str) {
 function truncateLabel(str, maxLen) {
     const clean = String(str || "").trim();
     return clean.length > maxLen ? clean.slice(0, maxLen - 1).trim() + "…" : clean;
+}
+
+// Deterministický hash a generátor pro autentický Sharpie autogram
+function hashSeed(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+
+function createRng(seed) {
+    let s = seed || 123456789;
+    return () => {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+// Generátor reálného Sharpie podpisu + ručně napsaného názvu alba na CD
+function generateSharpieDiscSVG(artistName, albumName, rating) {
+    const artistSeed = hashSeed((artistName || "artist").toLowerCase());
+    const albumSeed = hashSeed((albumName || "album").toLowerCase());
+    const randA = createRng(artistSeed);
+    const randB = createRng(albumSeed);
+
+    // 1) Velká gestická iniciála + klikatý podpis interpreta v pravé horní/střední zóně (viditelné i při vykukování)
+    const startX = 112 + randA() * 14;
+    const startY = 58 + randA() * 16;
+    const loopH = 34 + randA() * 16;
+    const loopW = 16 + randA() * 12;
+
+    // Velká smyčka iniciály (styl Sharpie tagu)
+    let sigPath = `M ${startX.toFixed(1)},${startY.toFixed(1)} `;
+    sigPath += `C ${(startX + loopW * 1.4).toFixed(1)},${(startY - loopH).toFixed(1)} `;
+    sigPath += `${(startX - loopW * 0.4).toFixed(1)},${(startY - loopH * 0.9).toFixed(1)} `;
+    sigPath += `${(startX + 4).toFixed(1)},${(startY + 6).toFixed(1)} `;
+
+    // Druhý strmý tah nahoru a dolů
+    const peak2X = startX + 14 + randA() * 10;
+    const peak2Y = startY - (24 + randA() * 14);
+    sigPath += `Q ${(startX + 9).toFixed(1)},${(peak2Y - 4).toFixed(1)} ${peak2X.toFixed(1)},${(startY + 4).toFixed(1)} `;
+
+    // Rychlé kurzívní klikyháky směrem k pravému okraji disku
+    let curX = peak2X;
+    let curY = startY + 2;
+    const steps = 6 + Math.floor(randA() * 4);
+    for (let i = 0; i < steps; i++) {
+        const dx = 4.5 + randA() * 5.5;
+        const upH = (i % 2 === 0 ? -1 : 1) * (6 + randA() * 11);
+        const tilt = 3 + randA() * 4;
+        const cpX = curX + dx * 0.5 + tilt;
+        const cpY = curY + upH;
+        curX = Math.min(182, curX + dx);
+        curY = startY + (randA() - 0.45) * 8;
+        sigPath += `Q ${cpX.toFixed(1)},${cpY.toFixed(1)} ${curX.toFixed(1)},${curY.toFixed(1)} `;
+    }
+
+    // Podtrhávací švih / přeškrtnutí podpisu
+    const slashStartX = startX - 6;
+    const slashStartY = startY + 12 + randA() * 5;
+    const slashEndX = Math.min(184, curX + 4);
+    const slashEndY = slashStartY - (6 + randA() * 8);
+    const slashCtrlX = (slashStartX + slashEndX) * 0.5;
+    const slashCtrlY = slashStartY + 5 + randA() * 5;
+    const flourishPath = `M ${slashStartX.toFixed(1)},${slashStartY.toFixed(1)} Q ${slashCtrlX.toFixed(1)},${slashCtrlY.toFixed(1)} ${slashEndX.toFixed(1)},${slashEndY.toFixed(1)}`;
+
+    // 2) Ručně psaný název alba fixou v pravé dolní části disku
+    const albumLabel = escapeHtml(truncateLabel(albumName, 18));
+    const labelAngle = -28 + (randB() - 0.5) * 18;
+    const labelX = 148;
+    const labelY = 144;
+
+    // 3) Sběratelská značka hodnocení (jako "#3" na fotce) na levé/spodní straně disku
+    const scoreTag = rating ? `#${rating}` : "";
+    const scoreAngle = -14 + (randB() - 0.5) * 24;
+
+    return `
+        <svg class="cd-sharpie-svg" viewBox="0 0 200 200">
+            <path class="sharpie-stroke-main" stroke-width="3.6" d="${sigPath}" />
+            <path class="sharpie-stroke-thin" stroke-width="2.5" d="${flourishPath}" />
+            <text class="sharpie-tag-album" x="${labelX}" y="${labelY}" text-anchor="middle" transform="rotate(${labelAngle.toFixed(1)} ${labelX} ${labelY})">${albumLabel}</text>
+            ${scoreTag ? `<text class="sharpie-tag-score" x="62" y="148" text-anchor="middle" transform="rotate(${scoreAngle.toFixed(1)} 62 148)">${escapeHtml(scoreTag)}</text>` : ""}
+        </svg>
+    `;
 }
 
 // Start
@@ -206,19 +293,13 @@ function renderArtistDiscography() {
     freshlyUnboxedAlbumId = null;
 }
 
-// 3D CD JEWEL CASE KARTA S RUČNĚ POPSANÝM CD A ROTACÍ PŘI HOVERU
+// 3D CD JEWEL CASE KARTA S SHARPIE PODPISEM A ROTACÍ PŘI HOVERU
 function createAlbumCard(album, context, artistName = "") {
     const review = userReviews[album.id] || {};
     const isListened = !!review.listened;
     const rating = review.rating;
     const year = getReleaseYear(album.release_date);
     const isJustUnboxed = isListened && freshlyUnboxedAlbumId === album.id;
-
-    const uid = ++cdRenderCounter;
-    const topArcId = `cd-top-arc-${uid}`;
-    const botArcId = `cd-bot-arc-${uid}`;
-    const discAlbumLabel = escapeHtml(truncateLabel(album.name, 26));
-    const discArtistLabel = escapeHtml(truncateLabel(artistName || album.artistName || "", 24));
 
     const div = document.createElement("div");
     div.className = `disco-item ${isListened ? "listened" : ""} ${isJustUnboxed ? "just-unboxed" : ""}`;
@@ -235,23 +316,14 @@ function createAlbumCard(album, context, artistName = "") {
         </div>`
         : "";
 
+    const sharpieSvg = generateSharpieDiscSVG(artistName || album.artistName || "", album.name, rating);
+
     div.innerHTML = `
         <div class="cd-stage">
             <div class="cd-3d-rig">
                 <div class="cd-disc-slot">
                     <div class="cd-disc">
-                        <svg class="cd-marker-svg" viewBox="0 0 200 200">
-                            <defs>
-                                <path id="${topArcId}" d="M 32,100 A 68,68 0 1,1 168,100" />
-                                <path id="${botArcId}" d="M 168,100 A 68,68 0 1,1 32,100" />
-                            </defs>
-                            <text class="cd-marker-album">
-                                <textPath href="#${topArcId}" startOffset="50%" text-anchor="middle">${discAlbumLabel}</textPath>
-                            </text>
-                            <text class="cd-marker-artist">
-                                <textPath href="#${botArcId}" startOffset="50%" text-anchor="middle">${discArtistLabel}</textPath>
-                            </text>
-                        </svg>
+                        ${sharpieSvg}
                     </div>
                 </div>
                 <div class="cd-jewel-case">
@@ -274,7 +346,6 @@ function createAlbumCard(album, context, artistName = "") {
         </div>
     `;
 
-    // Interaktivní 3D náklon, odlesk víčka a lom světla na vykukujícím CD
     div.addEventListener("pointermove", (e) => {
         const rect = div.getBoundingClientRect();
         const nx = (e.clientX - rect.left) / rect.width;
