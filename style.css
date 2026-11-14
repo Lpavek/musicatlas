@@ -248,20 +248,21 @@ h1 {
 }
 
 /* =========================================================
-   3D CD JEWEL CASE GRID
+   3D CD JEWEL CASE GRID S REÁLNOU HLOUBKOU (10MM BOX)
    ========================================================= */
 .disco-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
-    gap: 42px 34px;
+    gap: 44px 36px;
 }
 
 .disco-item {
     cursor: pointer;
     user-select: none;
-    --rx: 0deg;
-    --ry: 0deg;
-    --gx: 30%;
+    /* Decentní výchozí natočení v prostoru, aby vynikla tloušťka hřbetu i hloubka disku */
+    --rx: 2deg;
+    --ry: -7deg;
+    --gx: 28%;
     --gy: 20%;
     --disc-angle: 35deg;
 }
@@ -270,37 +271,108 @@ h1 {
     position: relative;
     width: 100%;
     aspect-ratio: 1.16 / 1;
-    perspective: 1000px;
+    perspective: 920px;
     display: flex;
     align-items: center;
+    padding-left: 4px;
 }
 
 .cd-3d-rig {
     position: relative;
-    width: 84%;
+    width: 83%;
     aspect-ratio: 1 / 1;
     transform-style: preserve-3d;
     transform: translateZ(0px) rotateX(var(--rx)) rotateY(var(--ry)) scale(0.985);
-    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .disco-item.listened .cd-3d-rig {
-    transform: translateZ(6px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1);
+    transform: translateZ(8px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1);
 }
 
 .disco-item:hover .cd-3d-rig {
-    transform: translateZ(14px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1.015);
+    transform: translateZ(18px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1.02);
     transition: transform 0.1s ease-out;
 }
 
-/* SLOT PRO VYSUNUTÍ CD Z KRABIČKY */
+/* ZADNÍ PLATO KRABIČKY + PROSTOROVÝ STÍN (Z = -6px) */
+.cd-back-tray {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px 5px 5px 3px;
+    background: #0a0a0c;
+    transform: translateZ(-6px);
+    box-shadow:
+        0 20px 36px rgba(0, 0, 0, 0.85),
+        0 6px 14px rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 3D BOČNÍ STĚNA HŘBETU (Z = -6px .. +6px -> tloušťka 12px) */
+.cd-side-left {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: 0;
+    width: 12px;
+    transform-origin: left center;
+    transform: translateZ(6px) rotateY(-90deg);
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.16) 0px,
+            rgba(255, 255, 255, 0.16) 1.5px,
+            rgba(0, 0, 0, 0.72) 1.5px,
+            rgba(0, 0, 0, 0.72) 3.5px
+        ),
+        linear-gradient(90deg, #161618 0%, #2c2c30 50%, #141416 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+/* 3D HORNÍ A SPODNÍ AKRYLOVÁ HRANA KRABIČKY */
+.cd-side-top {
+    position: absolute;
+    top: 0;
+    left: 1px;
+    right: 2px;
+    height: 12px;
+    transform-origin: top center;
+    transform: translateZ(6px) rotateX(90deg);
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.24) 0%,
+        rgba(255, 255, 255, 0.07) 55%,
+        rgba(20, 20, 24, 0.85) 100%
+    );
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+    border-right: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.cd-side-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 1px;
+    right: 2px;
+    height: 12px;
+    transform-origin: bottom center;
+    transform: translateZ(6px) rotateX(-90deg);
+    background: linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.14) 0%,
+        rgba(15, 15, 18, 0.9) 100%
+    );
+}
+
+/* SLOT PRO VYSUNUTÍ CD Z KRABIČKY (Z = 0px -> uprostřed tloušťky krabičky!) */
 .cd-disc-slot {
     position: absolute;
     top: 3%;
     right: 2%;
     width: 94%;
     height: 94%;
-    transform: translateZ(-8px) translateX(0%);
+    transform: translateZ(0px) translateX(0%);
     opacity: 0;
     pointer-events: none;
     transition:
@@ -310,11 +382,11 @@ h1 {
 
 .disco-item.listened .cd-disc-slot {
     opacity: 1;
-    transform: translateZ(-8px) translateX(29%);
+    transform: translateZ(0px) translateX(29%);
 }
 
 .disco-item.listened:hover .cd-disc-slot {
-    transform: translateZ(-6px) translateX(42%);
+    transform: translateZ(1px) translateX(43%);
 }
 
 .disco-item.just-unboxed .cd-disc-slot {
@@ -324,15 +396,15 @@ h1 {
 @keyframes cd-eject-slot {
     0% {
         opacity: 0.4;
-        transform: translateZ(-8px) translateX(0%);
+        transform: translateZ(0px) translateX(0%);
     }
     55% {
         opacity: 1;
-        transform: translateZ(-6px) translateX(40%);
+        transform: translateZ(1px) translateX(42%);
     }
     100% {
         opacity: 1;
-        transform: translateZ(-8px) translateX(27%);
+        transform: translateZ(0px) translateX(29%);
     }
 }
 
@@ -345,7 +417,6 @@ h1 {
     overflow: hidden;
     transform: rotate(0deg);
     background:
-        /* Středový průhledný prstenec a plastový kruh */
         radial-gradient(circle at center,
             rgba(13, 13, 13, 0.96) 0 11%,
             rgba(255, 255, 255, 0.55) 11.4% 12.6%,
@@ -353,12 +424,10 @@ h1 {
             rgba(255, 255, 255, 0.35) 19% 20.2%,
             transparent 20.8%
         ),
-        /* Světelný odlesk na polykarbonátu */
         radial-gradient(circle at 72% 32%,
             rgba(255, 255, 255, 0.42) 0%,
             transparent 48%
         ),
-        /* Iridescent spektrum reagující na náklon */
         conic-gradient(
             from var(--disc-angle),
             #c7cdd6 0deg,
@@ -378,7 +447,6 @@ h1 {
         0 12px 26px rgba(0, 0, 0, 0.82);
 }
 
-/* Jemné datové stopy */
 .cd-disc::after {
     content: "";
     position: absolute;
@@ -394,7 +462,6 @@ h1 {
     );
 }
 
-/* Plynulé otáčení disku při najetí myší */
 .disco-item.listened:hover .cd-disc {
     animation: cd-spin 4.2s linear infinite;
 }
@@ -450,36 +517,21 @@ h1 {
     opacity: 0.9;
 }
 
-.sharpie-tag-note {
-    font-family: 'Reenie Beanie', cursive;
-    font-size: 19px;
-    font-weight: 700;
-    fill: #141418;
-    opacity: 0.82;
-}
-
-/* HLAVNÍ PLASTOVÁ KRABIČKA (JEWEL CASE) */
+/* PŘEDNÍ ČÁST PLASTOVÉ KRABIČKY (Z = +6px) */
 .cd-jewel-case {
     position: relative;
     width: 100%;
     height: 100%;
-    border-radius: 3px 5px 5px 3px;
+    border-radius: 2px 5px 5px 2px;
     background: #121212;
+    transform: translateZ(6px);
     transform-style: preserve-3d;
     display: flex;
     overflow: hidden;
     box-shadow:
-        -1px 0 0 rgba(255, 255, 255, 0.1),
-        0 1px 0 rgba(255, 255, 255, 0.08),
-        0 14px 28px rgba(0, 0, 0, 0.72);
-    transition: box-shadow 0.35s ease;
-}
-
-.disco-item.listened .cd-jewel-case {
-    box-shadow:
-        -1px 0 0 rgba(255, 255, 255, 0.24),
-        0 1px 0 rgba(255, 255, 255, 0.2),
-        0 20px 40px rgba(0, 0, 0, 0.88);
+        -3px 0 10px rgba(0, 0, 0, 0.65),
+        0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 /* Levý vroubkovaný plastový hřbet krabičky */
@@ -492,13 +544,13 @@ h1 {
     background:
         repeating-linear-gradient(
             to bottom,
-            rgba(255, 255, 255, 0.13) 0px,
-            rgba(255, 255, 255, 0.13) 1.5px,
-            rgba(0, 0, 0, 0.65) 1.5px,
-            rgba(0, 0, 0, 0.65) 3.5px
+            rgba(255, 255, 255, 0.14) 0px,
+            rgba(255, 255, 255, 0.14) 1.5px,
+            rgba(0, 0, 0, 0.68) 1.5px,
+            rgba(0, 0, 0, 0.68) 3.5px
         ),
-        linear-gradient(90deg, #272727 0%, #141414 60%, #0a0a0a 100%);
-    border-right: 1px solid rgba(255, 255, 255, 0.14);
+        linear-gradient(90deg, #2b2b2f 0%, #151518 60%, #0a0a0c 100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 /* Booklet s cover artem */
@@ -538,20 +590,20 @@ h1 {
     background:
         radial-gradient(
             circle at var(--gx) var(--gy),
-            rgba(255, 255, 255, 0.24) 0%,
+            rgba(255, 255, 255, 0.25) 0%,
             rgba(255, 255, 255, 0.05) 35%,
             transparent 68%
         ),
         linear-gradient(
             125deg,
-            rgba(255, 255, 255, 0.14) 0%,
+            rgba(255, 255, 255, 0.15) 0%,
             rgba(255, 255, 255, 0.02) 38%,
             transparent 42%
         );
     box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.35),
+        inset 0 1px 1px rgba(255, 255, 255, 0.38),
         inset 0 -1px 2px rgba(0, 0, 0, 0.65),
-        inset -1px 0 1px rgba(255, 255, 255, 0.2);
+        inset -1px 0 1px rgba(255, 255, 255, 0.22);
 }
 
 .cd-acrylic-lid::before,
@@ -561,7 +613,7 @@ h1 {
     left: 11%;
     width: 8px;
     height: 2.5px;
-    background: rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.34);
     border-radius: 1px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
@@ -618,57 +670,142 @@ h1 {
     color: rgba(255, 255, 255, 0.62);
 }
 
-/* STAV 2: POSLECHNUTO -> ROZBALENO + JAPONSKÝ OBI PÁSEK */
+/* =========================================================
+   STAV 2: POSLECHNUTO -> KVALITNÍ ARCHIVNÍ OBI PÁSEK
+   ========================================================= */
 .cd-obi {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 6.5%;
-    width: 17px;
+    top: -1px;
+    bottom: -1px;
+    left: 6.2%;
+    width: 22px;
     z-index: 6;
     pointer-events: none;
-    background: #eae4d7;
-    color: #141414;
+    /* Strukturovaný krémový karton (Japanese cotton stock) */
+    background:
+        repeating-linear-gradient(
+            0deg,
+            rgba(60, 52, 40, 0.035) 0px,
+            rgba(60, 52, 40, 0.035) 1px,
+            transparent 1px,
+            transparent 3px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(60, 52, 40, 0.025) 0px,
+            rgba(60, 52, 40, 0.025) 1px,
+            transparent 1px,
+            transparent 3px
+        ),
+        linear-gradient(
+            90deg,
+            #dcd4c4 0%,
+            #f3efe6 18%,
+            #ebe5d8 78%,
+            #dfd7c7 100%
+        );
+    color: #191816;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 7px 0;
+    padding: 8px 0;
     box-shadow:
-        2px 0 6px rgba(0, 0, 0, 0.55),
-        -1px 0 2px rgba(0, 0, 0, 0.4);
-    border-left: 1px solid rgba(255, 255, 255, 0.7);
+        3px 0 8px rgba(0, 0, 0, 0.58),
+        1px 0 0 rgba(0, 0, 0, 0.35),
+        -1px 0 3px rgba(0, 0, 0, 0.45),
+        inset 1px 0 0 rgba(255, 255, 255, 0.75);
+}
+
+/* Rylovací drážka ohybu papíru přes hranu pantu */
+.cd-obi::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3.5px;
+    width: 1.5px;
+    background: linear-gradient(
+        90deg,
+        rgba(0, 0, 0, 0.18),
+        rgba(255, 255, 255, 0.65)
+    );
+}
+
+.cd-obi-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.cd-obi-kicker {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 5.5px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #7c7467;
 }
 
 .cd-obi-year {
     writing-mode: vertical-rl;
     transform: rotate(180deg);
-    font-size: 8.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.09em;
     font-variant-numeric: tabular-nums;
-    color: #2b2925;
+    color: #181715;
 }
 
-.cd-obi-line {
-    width: 7px;
+.cd-obi-mid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    opacity: 0.65;
+}
+
+.cd-obi-rule {
+    width: 9px;
     height: 1px;
-    background: rgba(20, 20, 20, 0.25);
+    background: rgba(24, 23, 21, 0.28);
+}
+
+.cd-obi-stamp {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 5.5px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: #5e574c;
+}
+
+.cd-obi-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
 }
 
 .cd-obi-score {
     writing-mode: vertical-rl;
     transform: rotate(180deg);
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 800;
     letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
-    color: #0e0e0e;
+    color: #141311;
+    padding: 3px 2px;
+    border: 1px solid rgba(24, 23, 21, 0.32);
+    border-radius: 1.5px;
+    background: rgba(255, 255, 255, 0.35);
 }
 
 /* POPISKY POD CD KRABIČKOU */
 .disco-meta {
-    margin-top: 10px;
+    margin-top: 12px;
     padding-right: 16%;
 }
 
