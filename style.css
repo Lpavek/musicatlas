@@ -1,929 +1,513 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+// Stav aplikace
+let savedMusic = JSON.parse(localStorage.getItem("atlas_music")) || [];
+// Ručně kurátorované diskografie podle ID interpreta: { [artistId]: [ { id, name, image, group, release_date }, ... ] }
+let artistDiscographies = JSON.parse(localStorage.getItem("atlas_artist_discographies")) || {};
+// Osobní záznamy poslechu podle ID alba: { [albumId]: { listened: true, rating: "8.5", review: "..." } }
+let userReviews = JSON.parse(localStorage.getItem("atlas_user_reviews")) || {};
+
+let currentMode = "artists";
+let currentArtistFocus = null;
+let currentReviewAlbum = null;
+let currentReviewContext = "artist"; // "artist" | "standalone"
+let availableArtistReleases = [];
+let pickerGroupFilter = "all";
+let freshlyUnboxedAlbumId = null;
+
+// DOM
+const views = {
+    library: document.getElementById("library-view"),
+    artistDetail: document.getElementById("artist-detail-view")
+};
+
+const contentGrid = document.getElementById("content-grid");
+const discoGrid = document.getElementById("discography-grid");
+
+const modals = {
+    search: document.getElementById("modal-search"),
+    artistAlbums: document.getElementById("modal-artist-albums"),
+    review: document.getElementById("modal-review")
+};
+
+// Pomocná funkce pro přesné chronologické řazení (od nejstaršího po nejnovější)
+function normalizeReleaseTimestamp(dateStr) {
+    if (!dateStr) return 0;
+    const parts = String(dateStr).split("-");
+    const year = parts[0] || "1900";
+    const month = (parts[1] || "01").padStart(2, "0");
+    const day = (parts[2] || "01").padStart(2, "0");
+    return new Date(`${year}-${month}-${day}T00:00:00Z`).getTime() || 0;
 }
 
-body {
-    background-color: #0d0d0d;
-    color: #f2f2f2;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
+function getReleaseYear(dateStr) {
+    return dateStr ? String(dateStr).slice(0, 4) : "";
 }
 
-.view {
-    display: none;
-    max-width: 1320px;
-    margin: 0 auto;
-    padding: 40px 48px;
-}
-
-.view.active {
-    display: block;
-}
-
-/* HLAVIČKA */
-.top-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 24px;
-    margin-bottom: 48px;
-    flex-wrap: wrap;
-}
-
-.header-left,
-.header-right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-}
-
-h1 {
-    font-size: 24px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-}
-
-.artist-heading {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.artist-heading img {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-/* TLAČÍTKA & PŘEPÍNAČE */
-.btn-primary {
-    background: #f2f2f2;
-    color: #0d0d0d;
-    border: none;
-    padding: 9px 18px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
-}
-
-.btn-primary:hover {
-    background: #ffffff;
-    transform: translateY(-1px);
-}
-
-.btn-spotify {
-    background: transparent;
-    color: #1db954;
-    border: 1px solid rgba(29, 185, 84, 0.45);
-    padding: 8px 16px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
-}
-
-.btn-spotify:hover {
-    background: rgba(29, 185, 84, 0.1);
-    border-color: #1db954;
-}
-
-.btn-icon {
-    background: transparent;
-    color: #8e8e8e;
-    border: none;
-    font-size: 14px;
-    cursor: pointer;
-    padding: 6px 8px;
-    transition: color 0.2s;
-}
-
-.btn-icon:hover {
-    color: #ffffff;
-}
-
-.btn-ghost {
-    background: transparent;
-    color: #a0a0a0;
-    border: 1px solid #2e2e2e;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.btn-ghost:hover {
-    color: #fff;
-    border-color: #4a4a4a;
-}
-
-.btn-danger {
-    background: transparent;
-    color: #b85c5c;
-    border: none;
-    font-size: 13px;
-    cursor: pointer;
-    padding: 8px 4px;
-}
-
-.btn-danger:hover {
-    color: #e07070;
-}
-
-.view-toggle {
-    background: #171717;
-    border: 1px solid #242424;
-    border-radius: 999px;
-    padding: 3px;
-    display: flex;
-}
-
-.toggle-btn {
-    background: transparent;
-    border: none;
-    color: #888;
-    padding: 6px 16px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.toggle-btn.active {
-    background: #262626;
-    color: #f5f5f5;
-}
-
-/* KARTOTÉKA INTERPRETŮ */
-.content-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
-    gap: 24px;
-}
-
-.artist-simple-card {
-    background: #141414;
-    border-radius: 14px;
-    padding: 24px 16px 20px;
-    text-align: center;
-    cursor: pointer;
-    border: 1px solid #1f1f1f;
-    transition: background 0.25s, transform 0.25s, border-color 0.25s;
-}
-
-.artist-simple-card:hover {
-    background: #1a1a1a;
-    border-color: #303030;
-    transform: translateY(-3px);
-}
-
-.artist-simple-card img {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 14px;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
-}
-
-.artist-simple-card h3 {
-    font-size: 15px;
-    font-weight: 500;
-    color: #ececec;
-}
-
-.artist-simple-card .card-sub {
-    margin-top: 4px;
-    font-size: 12px;
-    color: #6e6e6e;
-}
-
-/* FILTRY V DETAILU INTERPRETA */
-.filter-pills {
-    display: flex;
-    gap: 8px;
-}
-
-.filter-pill input {
-    display: none;
-}
-
-.filter-pill span {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 13px;
-    border-radius: 999px;
-    font-size: 12px;
-    color: #777;
-    background: #151515;
-    border: 1px solid #242424;
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.filter-pill span small {
-    color: #555;
-    font-size: 11px;
-}
-
-.filter-pill input:checked + span {
-    color: #ececec;
-    background: #1f1f1f;
-    border-color: #3a3a3a;
-}
-
-.filter-pill input:checked + span small {
-    color: #9a9a9a;
-}
-
-/* =========================================================
-   3D CD JEWEL CASE GRID
-   ========================================================= */
-.disco-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
-    gap: 42px 34px;
-}
-
-.disco-item {
-    cursor: pointer;
-    user-select: none;
-    --rx: 0deg;
-    --ry: 0deg;
-    --gx: 30%;
-    --gy: 20%;
-    --disc-angle: 35deg;
-}
-
-/* 3D Scéna s prostorem vpravo pro vysunutý CD disk */
-.cd-stage {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1.14 / 1;
-    perspective: 1000px;
-    display: flex;
-    align-items: center;
-}
-
-.cd-3d-rig {
-    position: relative;
-    width: 86%;
-    aspect-ratio: 1 / 1;
-    transform-style: preserve-3d;
-    transform: translateZ(0px) rotateX(var(--rx)) rotateY(var(--ry)) scale(0.985);
-    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Poslechnuté album sedí v prostoru o kousek blíž ke kameře */
-.disco-item.listened .cd-3d-rig {
-    transform: translateZ(6px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1);
-}
-
-.disco-item:hover .cd-3d-rig {
-    transform: translateZ(14px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1.015);
-    transition: transform 0.1s ease-out;
-}
-
-/* VYKUKUJÍCÍ IRIDESCENT CD DISK */
-.cd-disc {
-    position: absolute;
-    top: 3.5%;
-    right: 2%;
-    width: 93%;
-    height: 93%;
-    border-radius: 50%;
-    transform: translateZ(-8px) translateX(0%) rotate(0deg);
-    opacity: 0;
-    pointer-events: none;
-    transition:
-        transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-        opacity 0.4s ease;
-    background:
-        /* Středový průhledný prstenec a upínací trn */
-        radial-gradient(circle at center,
-            rgba(13, 13, 13, 0.96) 0 11%,
-            rgba(255, 255, 255, 0.5) 11.4% 12.6%,
-            rgba(35, 35, 38, 0.88) 13% 18.5%,
-            rgba(255, 255, 255, 0.35) 19% 20.2%,
-            transparent 20.8%
-        ),
-        /* Jemný laserový odlesk na hraně */
-        radial-gradient(circle at 72% 32%,
-            rgba(255, 255, 255, 0.42) 0%,
-            transparent 48%
-        ),
-        /* Dynamická difrakce reagující na úhel náklonu (--disc-angle) */
-        conic-gradient(
-            from var(--disc-angle),
-            #c5cbd4 0deg,
-            #ffffff 28deg,
-            #96b4d6 62deg,
-            #d9b3da 104deg,
-            #f2e3ae 148deg,
-            #98d2c1 190deg,
-            #ffffff 222deg,
-            #aeb9ce 265deg,
-            #e1b5c7 310deg,
-            #c5cbd4 360deg
-        );
-    box-shadow:
-        inset 0 0 0 1.5px rgba(255, 255, 255, 0.7),
-        inset 0 0 16px rgba(0, 0, 0, 0.38),
-        0 12px 26px rgba(0, 0, 0, 0.8);
-}
-
-/* Datové stopy na povrchu disku */
-.cd-disc::after {
-    content: "";
-    position: absolute;
-    inset: 21%;
-    border-radius: 50%;
-    background: repeating-radial-gradient(
-        circle at center,
-        rgba(255, 255, 255, 0.09) 0px,
-        rgba(255, 255, 255, 0.09) 1px,
-        transparent 1px,
-        transparent 3.5px
+function sortChronologically(albums) {
+    return [...albums].sort(
+        (a, b) => normalizeReleaseTimestamp(a.release_date) - normalizeReleaseTimestamp(b.release_date)
     );
 }
 
-/* Klidový stav poslechnuté desky: disk decentně vykukuje */
-.disco-item.listened .cd-disc {
-    opacity: 1;
-    transform: translateZ(-8px) translateX(21%) rotate(16deg);
+// Start
+document.addEventListener("DOMContentLoaded", async () => {
+    await SpotifyAPI.finishAuth();
+    const token = await SpotifyAPI.getToken();
+    const loginBtn = document.getElementById("login-btn");
+    if (loginBtn) loginBtn.style.display = token ? "none" : "inline-block";
+    renderLibrary();
+});
+
+document.getElementById("login-btn")?.addEventListener("click", () => SpotifyAPI.login());
+
+function switchView(viewName) {
+    Object.values(views).forEach(v => v?.classList.remove("active"));
+    views[viewName]?.classList.add("active");
 }
 
-/* Hover stav poslechnuté desky: plynulé vysunutí a pootočení s setrvačností */
-.disco-item.listened:hover .cd-disc {
-    transform: translateZ(-6px) translateX(34%) rotate(54deg);
-    transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+document.getElementById("back-to-library")?.addEventListener("click", () => {
+    currentArtistFocus = null;
+    switchView("library");
+    renderLibrary();
+});
+
+// --- HLAVNÍ KARTOTÉKA (INTERPRETI / SAMOSTATNÁ ALBA) ---
+document.getElementById("toggle-artists")?.addEventListener("click", (e) => {
+    currentMode = "artists";
+    updateToggleUI(e.target);
+});
+
+document.getElementById("toggle-albums")?.addEventListener("click", (e) => {
+    currentMode = "albums";
+    updateToggleUI(e.target);
+});
+
+function updateToggleUI(activeBtn) {
+    document.querySelectorAll(".toggle-btn").forEach(btn => btn.classList.remove("active"));
+    activeBtn?.classList.add("active");
+    renderLibrary();
 }
 
-/* Jednorázová animace vysunutí při čerstvém označení "Poslechnuto" */
-.disco-item.just-unboxed .cd-disc {
-    animation: cd-eject-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
+function renderLibrary() {
+    if (!contentGrid) return;
+    contentGrid.innerHTML = "";
 
-@keyframes cd-eject-reveal {
-    0% {
-        opacity: 0.4;
-        transform: translateZ(-8px) translateX(0%) rotate(-35deg);
+    const seenIds = new Set();
+    const items = savedMusic.filter(item => {
+        if (item.type !== currentMode || seenIds.has(item.id)) return false;
+        seenIds.add(item.id);
+        return true;
+    });
+
+    if (items.length === 0) {
+        contentGrid.innerHTML = `<div class="empty-state">Zatím tu nemáš žádné ${currentMode === "artists" ? "interprety" : "alba"}. Přidej první přes tlačítko nahoře.</div>`;
+        return;
     }
-    55% {
-        opacity: 1;
-        transform: translateZ(-6px) translateX(33%) rotate(34deg);
+
+    if (currentMode === "artists") {
+        contentGrid.className = "content-grid";
+        items.forEach(artist => {
+            const count = (artistDiscographies[artist.id] || []).length;
+            const card = document.createElement("div");
+            card.className = "artist-simple-card";
+            card.innerHTML = `
+                <img src="${artist.image}" alt="${artist.name}">
+                <h3>${artist.name}</h3>
+                <div class="card-sub">${count > 0 ? `${count} ${count === 1 ? "nahrávka" : count < 5 ? "nahrávky" : "nahrávek"}` : "Prázdná diskografie"}</div>
+            `;
+            card.onclick = () => openArtistDetail(artist);
+            contentGrid.appendChild(card);
+        });
+    } else {
+        contentGrid.className = "disco-grid";
+        const sortedAlbums = sortChronologically(items);
+        sortedAlbums.forEach(album => {
+            const card = createAlbumCard(album, "standalone");
+            contentGrid.appendChild(card);
+        });
+        freshlyUnboxedAlbumId = null;
     }
-    100% {
-        opacity: 1;
-        transform: translateZ(-8px) translateX(21%) rotate(16deg);
+}
+
+// --- DETAIL INTERPRETA (RUČNĚ DOPLŇOVANÁ DISKOGRAFIE) ---
+const chkAlbum = document.getElementById("filter-album");
+const chkSingle = document.getElementById("filter-single");
+const chkFeature = document.getElementById("filter-features");
+
+[chkAlbum, chkSingle, chkFeature].forEach(chk => {
+    chk?.addEventListener("change", () => renderArtistDiscography());
+});
+
+function openArtistDetail(artistItem) {
+    currentArtistFocus = artistItem;
+    document.getElementById("artist-detail-title").innerText = artistItem.name;
+    const avatar = document.getElementById("artist-detail-avatar");
+    if (avatar) avatar.src = artistItem.image;
+
+    switchView("artistDetail");
+    renderArtistDiscography();
+}
+
+function updateFilterCounts(curatedList) {
+    const albumCount = curatedList.filter(a => a.group === "album").length;
+    const singleCount = curatedList.filter(a => a.group === "single").length;
+    const featureCount = curatedList.filter(a => a.group === "appears_on").length;
+
+    document.getElementById("count-album").innerText = albumCount ? `(${albumCount})` : "";
+    document.getElementById("count-single").innerText = singleCount ? `(${singleCount})` : "";
+    document.getElementById("count-features").innerText = featureCount ? `(${featureCount})` : "";
+}
+
+function renderArtistDiscography() {
+    if (!discoGrid || !currentArtistFocus) return;
+    discoGrid.innerHTML = "";
+
+    const rawList = artistDiscographies[currentArtistFocus.id] || [];
+    const chronologicalList = sortChronologically(rawList);
+    updateFilterCounts(chronologicalList);
+
+    if (chronologicalList.length === 0) {
+        discoGrid.innerHTML = `<div class="empty-state">Diskografie tohoto interpreta je zatím prázdná. Klikni na <strong>+ Přidat alba</strong> a poskládej si ji podle sebe.</div>`;
+        return;
     }
+
+    const showAlbum = chkAlbum ? chkAlbum.checked : true;
+    const showSingle = chkSingle ? chkSingle.checked : true;
+    const showFeature = chkFeature ? chkFeature.checked : true;
+
+    const filtered = chronologicalList.filter(a => {
+        if (a.group === "album" && showAlbum) return true;
+        if (a.group === "single" && showSingle) return true;
+        if (a.group === "appears_on" && showFeature) return true;
+        return false;
+    });
+
+    if (filtered.length === 0) {
+        discoGrid.innerHTML = `<div class="empty-state">Žádná přidaná nahrávka neodpovídá aktivním filtrům.</div>`;
+        return;
+    }
+
+    filtered.forEach(album => {
+        discoGrid.appendChild(createAlbumCard(album, "artist"));
+    });
+    freshlyUnboxedAlbumId = null;
 }
 
-/* HLAVNÍ PLASTOVÁ KRABIČKA (JEWEL CASE) */
-.cd-jewel-case {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border-radius: 3px 5px 5px 3px;
-    background: #121212;
-    transform-style: preserve-3d;
-    display: flex;
-    overflow: hidden;
-    box-shadow:
-        -1px 0 0 rgba(255, 255, 255, 0.1),
-        0 1px 0 rgba(255, 255, 255, 0.08),
-        0 14px 28px rgba(0, 0, 0, 0.72);
-    transition: box-shadow 0.35s ease;
+// 3D CD JEWEL CASE KARTA
+function createAlbumCard(album, context) {
+    const review = userReviews[album.id] || {};
+    const isListened = !!review.listened;
+    const rating = review.rating;
+    const year = getReleaseYear(album.release_date);
+    const isJustUnboxed = isListened && freshlyUnboxedAlbumId === album.id;
+
+    const div = document.createElement("div");
+    div.className = `disco-item ${isListened ? "listened" : ""} ${isJustUnboxed ? "just-unboxed" : ""}`;
+
+    const shrinkwrapHtml = !isListened
+        ? `<div class="cd-shrinkwrap"><span class="cd-hype-sticker">SEALED</span></div>`
+        : "";
+
+    const obiHtml = isListened
+        ? `
+        <div class="cd-obi">
+            <span class="cd-obi-year">${year || "CD"}</span>
+            ${rating ? `<span class="cd-obi-line"></span><span class="cd-obi-score">${rating}</span>` : ""}
+        </div>`
+        : "";
+
+    div.innerHTML = `
+        <div class="cd-stage">
+            <div class="cd-3d-rig">
+                <div class="cd-disc"></div>
+                <div class="cd-jewel-case">
+                    <div class="cd-spine"></div>
+                    <div class="cd-booklet">
+                        <img src="${album.image}" alt="${album.name}" loading="lazy">
+                    </div>
+                    <div class="cd-acrylic-lid"></div>
+                    ${shrinkwrapHtml}
+                    ${obiHtml}
+                </div>
+            </div>
+        </div>
+        <div class="disco-meta">
+            <h4>${album.name}</h4>
+            <div class="disco-subline">
+                ${year ? `<span>${year}</span>` : ""}
+                ${isListened && rating ? `<span>· ${rating} / 10</span>` : ""}
+            </div>
+        </div>
+    `;
+
+    // Interaktivní 3D náklon, odlesk víčka a lom světla na vykukujícím CD
+    div.addEventListener("pointermove", (e) => {
+        const rect = div.getBoundingClientRect();
+        const nx = (e.clientX - rect.left) / rect.width;
+        const ny = (e.clientY - rect.top) / rect.height;
+
+        const rotateY = (nx - 0.5) * 22;
+        const rotateX = (0.5 - ny) * 20;
+        const discAngle = 35 + (nx - 0.5) * 95 + (ny - 0.5) * 45;
+
+        div.style.setProperty("--rx", `${rotateX.toFixed(2)}deg`);
+        div.style.setProperty("--ry", `${rotateY.toFixed(2)}deg`);
+        div.style.setProperty("--gx", `${(nx * 100).toFixed(1)}%`);
+        div.style.setProperty("--gy", `${(ny * 100).toFixed(1)}%`);
+        div.style.setProperty("--disc-angle", `${discAngle.toFixed(1)}deg`);
+    });
+
+    div.addEventListener("pointerleave", () => {
+        div.style.setProperty("--rx", "0deg");
+        div.style.setProperty("--ry", "0deg");
+        div.style.setProperty("--gx", "30%");
+        div.style.setProperty("--gy", "20%");
+        div.style.setProperty("--disc-angle", "35deg");
+    });
+
+    div.onclick = () => openReviewModal(album, context);
+    return div;
 }
 
-.disco-item.listened .cd-jewel-case {
-    box-shadow:
-        -1px 0 0 rgba(255, 255, 255, 0.24),
-        0 1px 0 rgba(255, 255, 255, 0.2),
-        0 20px 40px rgba(0, 0, 0, 0.88);
+// --- SMOOTH PICKER PRO PŘIDÁVÁNÍ ALB DO DISKOGRAFIE ---
+document.getElementById("open-album-picker-btn")?.addEventListener("click", openArtistAlbumPicker);
+
+document.querySelectorAll(".picker-tab").forEach(tab => {
+    tab.addEventListener("click", (e) => {
+        document.querySelectorAll(".picker-tab").forEach(t => t.classList.remove("active"));
+        e.target.classList.add("active");
+        pickerGroupFilter = e.target.dataset.group;
+        renderArtistAlbumPickerList();
+    });
+});
+
+document.getElementById("picker-filter-input")?.addEventListener("input", () => {
+    renderArtistAlbumPickerList();
+});
+
+async function openArtistAlbumPicker() {
+    if (!currentArtistFocus) return;
+    modals.artistAlbums.classList.add("active");
+
+    document.getElementById("picker-subtitle").innerText = `Výběr nahrávek interpreta ${currentArtistFocus.name}`;
+    const filterInput = document.getElementById("picker-filter-input");
+    if (filterInput) filterInput.value = "";
+
+    const list = document.getElementById("artist-album-results");
+    list.innerHTML = `<div class="empty-state" style="padding: 32px;">Načítám katalog ze Spotify...</div>`;
+
+    availableArtistReleases = await SpotifyAPI.getArtistReleases(currentArtistFocus.id);
+
+    const releaseMap = new Map(availableArtistReleases.map(r => [r.id, r.group]));
+    const existing = artistDiscographies[currentArtistFocus.id];
+    if (existing && existing.length > 0) {
+        artistDiscographies[currentArtistFocus.id] = existing.map(item => ({
+            ...item,
+            group: releaseMap.get(item.id) || item.group
+        }));
+        localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+        renderArtistDiscography();
+    }
+
+    renderArtistAlbumPickerList();
 }
 
-/* Levý vroubkovaný plastový hřbet krabičky */
-.cd-spine {
-    width: 8.5%;
-    height: 100%;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 3;
-    background:
-        repeating-linear-gradient(
-            to bottom,
-            rgba(255, 255, 255, 0.13) 0px,
-            rgba(255, 255, 255, 0.13) 1.5px,
-            rgba(0, 0, 0, 0.65) 1.5px,
-            rgba(0, 0, 0, 0.65) 3.5px
-        ),
-        linear-gradient(90deg, #272727 0%, #141414 60%, #0a0a0a 100%);
-    border-right: 1px solid rgba(255, 255, 255, 0.14);
+function renderArtistAlbumPickerList() {
+    const list = document.getElementById("artist-album-results");
+    if (!list || !currentArtistFocus) return;
+
+    const query = (document.getElementById("picker-filter-input")?.value || "").toLowerCase().trim();
+    const curatedIds = new Set((artistDiscographies[currentArtistFocus.id] || []).map(a => a.id));
+
+    const filtered = sortChronologically(availableArtistReleases).filter(item => {
+        const matchesGroup = pickerGroupFilter === "all" || item.group === pickerGroupFilter;
+        const matchesText = !query || item.name.toLowerCase().includes(query);
+        return matchesGroup && matchesText;
+    });
+
+    list.innerHTML = "";
+    if (filtered.length === 0) {
+        list.innerHTML = `<div class="empty-state" style="padding: 32px;">Žádné nahrávky nenalezeny.</div>`;
+        return;
+    }
+
+    const groupLabels = {
+        album: "Album",
+        single: "Singl / EP",
+        appears_on: "Feature"
+    };
+
+    filtered.forEach(release => {
+        const isAdded = curatedIds.has(release.id);
+        const row = document.createElement("div");
+        row.className = `list-item ${isAdded ? "is-added" : ""}`;
+        row.innerHTML = `
+            <div class="list-item-left">
+                <img src="${release.image}" alt="">
+                <div class="list-item-info">
+                    <span class="list-item-title">${release.name}</span>
+                    <span class="list-item-sub">${getReleaseYear(release.release_date)} · ${groupLabels[release.group] || "Album"}</span>
+                </div>
+            </div>
+            <span class="picker-badge">${isAdded ? "Zařazeno" : "+ Přidat"}</span>
+        `;
+
+        row.onclick = () => {
+            const artistId = currentArtistFocus.id;
+            const currentList = artistDiscographies[artistId] || [];
+
+            if (curatedIds.has(release.id)) {
+                artistDiscographies[artistId] = currentList.filter(a => a.id !== release.id);
+            } else {
+                artistDiscographies[artistId] = sortChronologically([...currentList, release]);
+            }
+
+            localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+            renderArtistDiscography();
+            renderArtistAlbumPickerList();
+        };
+
+        list.appendChild(row);
+    });
 }
 
-/* Booklet s cover artem */
-.cd-booklet {
-    position: relative;
-    flex: 1;
-    height: 100%;
-    overflow: hidden;
-    background: #111;
+// --- MODAL ZÁZNAMU POSLECHU A HODNOCENÍ ---
+const revListened = document.getElementById("review-listened");
+const revRating = document.getElementById("review-rating");
+const revText = document.getElementById("review-text");
+
+function openReviewModal(album, context) {
+    currentReviewAlbum = album;
+    currentReviewContext = context;
+
+    document.getElementById("review-cover").src = album.image;
+    document.getElementById("review-title").innerText = album.name;
+    document.getElementById("review-year").innerText = getReleaseYear(album.release_date);
+
+    const review = userReviews[album.id] || {};
+    revListened.checked = !!review.listened;
+    revRating.value = review.rating || "";
+    revText.value = review.review || "";
+
+    toggleReviewInputs(!!review.listened);
+    modals.review.classList.add("active");
 }
 
-/* NEPOSLECHNUTO: -30 % vizuální živosti (utlumená sytost a jas pod fólií) */
-.cd-booklet img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    filter: saturate(0.68) brightness(0.84) contrast(0.94);
-    transition: filter 0.45s ease, transform 0.45s ease;
+revListened?.addEventListener("change", (e) => toggleReviewInputs(e.target.checked));
+
+function toggleReviewInputs(enabled) {
+    revRating.disabled = !enabled;
+    revText.disabled = !enabled;
 }
 
-.disco-item:not(.listened):hover .cd-booklet img {
-    filter: saturate(0.82) brightness(0.91) contrast(0.97);
-}
+document.getElementById("save-review-btn")?.addEventListener("click", () => {
+    if (currentReviewAlbum) {
+        const albumId = currentReviewAlbum.id;
+        const wasListened = !!userReviews[albumId]?.listened;
 
-/* POSLECHNUTO: 100 % plná živost a kontrast tisku */
-.disco-item.listened .cd-booklet img {
-    filter: saturate(1.03) brightness(1) contrast(1.02);
-}
+        if (revListened.checked) {
+            userReviews[albumId] = {
+                listened: true,
+                rating: revRating.value || null,
+                review: revText.value || ""
+            };
+            if (!wasListened) {
+                freshlyUnboxedAlbumId = albumId;
+            }
+        } else {
+            delete userReviews[albumId];
+        }
+        localStorage.setItem("atlas_user_reviews", JSON.stringify(userReviews));
+    }
 
-/* Akrylový odlesk a panty víčka krabičky */
-.cd-acrylic-lid {
-    position: absolute;
-    inset: 0;
-    z-index: 4;
-    pointer-events: none;
-    background:
-        radial-gradient(
-            circle at var(--gx) var(--gy),
-            rgba(255, 255, 255, 0.24) 0%,
-            rgba(255, 255, 255, 0.05) 35%,
-            transparent 68%
-        ),
-        linear-gradient(
-            125deg,
-            rgba(255, 255, 255, 0.14) 0%,
-            rgba(255, 255, 255, 0.02) 38%,
-            transparent 42%
+    modals.review.classList.remove("active");
+    if (currentReviewContext === "artist") {
+        renderArtistDiscography();
+    } else {
+        renderLibrary();
+    }
+});
+
+document.getElementById("remove-album-btn")?.addEventListener("click", () => {
+    if (!currentReviewAlbum) return;
+
+    if (currentReviewContext === "artist" && currentArtistFocus) {
+        const artistId = currentArtistFocus.id;
+        artistDiscographies[artistId] = (artistDiscographies[artistId] || []).filter(
+            a => a.id !== currentReviewAlbum.id
         );
-    box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.35),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.65),
-        inset -1px 0 1px rgba(255, 255, 255, 0.2);
-}
-
-.cd-acrylic-lid::before,
-.cd-acrylic-lid::after {
-    content: "";
-    position: absolute;
-    left: 11%;
-    width: 8px;
-    height: 2.5px;
-    background: rgba(255, 255, 255, 0.32);
-    border-radius: 1px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-}
-
-.cd-acrylic-lid::before {
-    top: 3px;
-}
-
-.cd-acrylic-lid::after {
-    bottom: 3px;
-}
-
-/* =========================================================
-   STAV 1: NEPOSLECHNUTO -> ZATAVENÁ FÓLIE + HYPE STICKER
-   ========================================================= */
-.cd-shrinkwrap {
-    position: absolute;
-    inset: 0;
-    z-index: 5;
-    pointer-events: none;
-    background:
-        rgba(15, 15, 17, 0.14),
-        linear-gradient(
-            112deg,
-            transparent 18%,
-            rgba(255, 255, 255, 0.15) 22%,
-            rgba(255, 255, 255, 0.03) 25%,
-            transparent 31%,
-            transparent 64%,
-            rgba(255, 255, 255, 0.12) 68%,
-            transparent 72%
-        ),
-        repeating-linear-gradient(
-            -32deg,
-            rgba(255, 255, 255, 0.022) 0px,
-            rgba(255, 255, 255, 0.022) 2px,
-            transparent 2px,
-            transparent 9px
-        );
-    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.35);
-}
-
-.cd-hype-sticker {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    padding: 3px 6px;
-    border-radius: 2px;
-    background: rgba(16, 16, 16, 0.76);
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    font-size: 8.5px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.62);
-}
-
-/* =========================================================
-   STAV 2: POSLECHNUTO -> ROZBALENO + JAPONSKÝ OBI PÁSEK
-   ========================================================= */
-.cd-obi {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 6.5%;
-    width: 17px;
-    z-index: 6;
-    pointer-events: none;
-    background: #eae4d7;
-    color: #141414;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 7px 0;
-    box-shadow:
-        2px 0 6px rgba(0, 0, 0, 0.55),
-        -1px 0 2px rgba(0, 0, 0, 0.4);
-    border-left: 1px solid rgba(255, 255, 255, 0.7);
-}
-
-.cd-obi-year {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    font-size: 8.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    font-variant-numeric: tabular-nums;
-    color: #2b2925;
-}
-
-.cd-obi-line {
-    width: 7px;
-    height: 1px;
-    background: rgba(20, 20, 20, 0.25);
-}
-
-.cd-obi-score {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    font-variant-numeric: tabular-nums;
-    color: #0e0e0e;
-}
-
-/* POPISKY POD CD KRABIČKOU */
-.disco-meta {
-    margin-top: 10px;
-    padding-right: 14%;
-}
-
-.disco-item h4 {
-    font-size: 13.5px;
-    font-weight: 400;
-    color: #787878;
-    line-height: 1.35;
-    transition: color 0.2s;
-}
-
-.disco-item.listened h4 {
-    color: #f3f3f3;
-    font-weight: 500;
-}
-
-.disco-subline {
-    margin-top: 3px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11.5px;
-    color: #525252;
-}
-
-.disco-item.listened .disco-subline {
-    color: #968e80;
-}
-
-.empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 72px 20px;
-    color: #666;
-    font-size: 14px;
-}
-
-/* MODALY */
-.modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.82);
-    backdrop-filter: blur(6px);
-    z-index: 1000;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-}
-
-.modal.active {
-    display: flex;
-}
-
-.modal-content {
-    background: #181818;
-    border: 1px solid #2a2a2a;
-    padding: 24px;
-    border-radius: 14px;
-    width: 100%;
-    max-width: 480px;
-    max-height: 82vh;
-    display: flex;
-    flex-direction: column;
-}
-
-.modal-wide {
-    max-width: 560px;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 14px;
-}
-
-.modal-header h2 {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.modal-subtitle {
-    font-size: 12px;
-    color: #7c7c7c;
-    margin-top: 3px;
-}
-
-.modal-footer {
-    margin-top: 14px;
-    display: flex;
-    justify-content: flex-end;
-}
-
-input[type="text"],
-input[type="number"],
-textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid #2e2e2e;
-    background: #111111;
-    color: #f2f2f2;
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-input[type="text"]:focus,
-input[type="number"]:focus,
-textarea:focus {
-    border-color: #555;
-}
-
-input:disabled,
-textarea:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-}
-
-.search-filters {
-    display: flex;
-    gap: 16px;
-    margin: 12px 0;
-    font-size: 13px;
-    color: #aaa;
-}
-
-.picker-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.picker-tabs {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.picker-tab {
-    background: #121212;
-    border: 1px solid #262626;
-    color: #888;
-    padding: 5px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.picker-tab.active {
-    background: #262626;
-    color: #f2f2f2;
-    border-color: #3d3d3d;
-}
-
-.list-container {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 360px;
-}
-
-.list-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 10px;
-    background: #121212;
-    border: 1px solid #222;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-}
-
-.list-item:hover {
-    background: #1e1e1e;
-    border-color: #343434;
-}
-
-.list-item-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-}
-
-.list-item img {
-    width: 44px;
-    height: 44px;
-    border-radius: 5px;
-    object-fit: cover;
-    flex-shrink: 0;
-}
-
-.list-item-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.list-item-title {
-    font-size: 13px;
-    font-weight: 500;
-    color: #efefef;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.list-item-sub {
-    font-size: 11px;
-    color: #707070;
-    margin-top: 2px;
-}
-
-.picker-badge {
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid #2f2f2f;
-    color: #9a9a9a;
-    flex-shrink: 0;
-}
-
-.list-item.is-added {
-    border-color: rgba(234, 228, 215, 0.35);
-    background: rgba(234, 228, 215, 0.05);
-}
-
-.list-item.is-added .picker-badge {
-    border-color: rgba(234, 228, 215, 0.45);
-    color: #eae4d7;
-}
-
-/* REVIEW MODAL */
-.review-content {
-    flex-direction: row;
-    max-width: 560px;
-    gap: 22px;
-}
-
-.review-content img {
-    width: 190px;
-    height: 190px;
-    border-radius: 8px;
-    object-fit: cover;
-    flex-shrink: 0;
-}
-
-.review-form {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-}
-
-.review-head {
-    margin-bottom: 12px;
-}
-
-.review-head h2 {
-    font-size: 17px;
-    line-height: 1.3;
-}
-
-.review-meta {
-    font-size: 12px;
-    color: #777;
-}
-
-.switch-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #ddd;
-    margin-bottom: 14px;
-    cursor: pointer;
-}
-
-.input-group {
-    margin-bottom: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.input-group label {
-    font-size: 12px;
-    color: #888;
-}
-
-.modal-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: auto;
-    padding-top: 8px;
-}
-
-.modal-actions-right {
-    display: flex;
-    gap: 8px;
-}
-
-@media (max-width: 640px) {
-    .view {
-        padding: 24px 20px;
+        localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+        modals.review.classList.remove("active");
+        renderArtistDiscography();
+    } else {
+        savedMusic = savedMusic.filter(item => !(item.type === "albums" && item.id === currentReviewAlbum.id));
+        localStorage.setItem("atlas_music", JSON.stringify(savedMusic));
+        modals.review.classList.remove("active");
+        renderLibrary();
     }
-    .review-content {
-        flex-direction: column;
-    }
-    .review-content img {
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1;
-    }
-}
+});
+
+// --- HLEDÁNÍ A PŘIDÁVÁNÍ DO HLAVNÍ KARTOTÉKY ---
+document.getElementById("add-item-btn")?.addEventListener("click", () => {
+    const input = document.getElementById("search-input");
+    const results = document.getElementById("search-results");
+    if (input) input.value = "";
+    if (results) results.innerHTML = "";
+    modals.search.classList.add("active");
+    input?.focus();
+});
+
+let searchTimeout;
+document.getElementById("search-input")?.addEventListener("input", (e) => {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    const type = document.querySelector('input[name="search-type"]:checked')?.value || "artist";
+    if (query.length < 2) return;
+
+    searchTimeout = setTimeout(async () => {
+        const results = await SpotifyAPI.search(query, type);
+        const list = document.getElementById("search-results");
+        if (!list) return;
+        list.innerHTML = "";
+
+        results.forEach(res => {
+            const img = res.images?.[0]?.url || "https://via.placeholder.com/150";
+            const div = document.createElement("div");
+            div.className = "list-item";
+            div.innerHTML = `
+                <div class="list-item-left">
+                    <img src="${img}" alt="">
+                    <div class="list-item-info">
+                        <span class="list-item-title">${res.name}</span>
+                        ${type === "album" ? `<span class="list-item-sub">${getReleaseYear(res.release_date)}</span>` : ""}
+                    </div>
+                </div>
+                <span class="picker-badge">+ Přidat</span>
+            `;
+
+            div.onclick = () => {
+                const targetType = type === "artist" ? "artists" : "albums";
+                const exists = savedMusic.some(m => m.type === targetType && m.id === res.id);
+
+                if (!exists) {
+                    savedMusic.push({
+                        type: targetType,
+                        id: res.id,
+                        name: res.name,
+                        image: img,
+                        release_date: res.release_date || null
+                    });
+                    localStorage.setItem("atlas_music", JSON.stringify(savedMusic));
+                }
+
+                currentMode = targetType;
+                updateToggleUI(document.getElementById(targetType === "artists" ? "toggle-artists" : "toggle-albums"));
+                modals.search.classList.remove("active");
+            };
+            list.appendChild(div);
+        });
+    }, 350);
+});
+
+document.querySelectorAll(".close-modal").forEach(btn => {
+    btn.addEventListener("click", (e) => e.target.closest(".modal")?.classList.remove("active"));
+});
