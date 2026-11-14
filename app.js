@@ -252,6 +252,19 @@ async function openArtistAlbumPicker() {
     list.innerHTML = `<div class="empty-state" style="padding: 32px;">Načítám katalog ze Spotify...</div>`;
 
     availableArtistReleases = await SpotifyAPI.getArtistReleases(currentArtistFocus.id);
+
+    // Aktualizuje typ (Album / Singl / Feature) i u dříve zařazených položek
+    const releaseMap = new Map(availableArtistReleases.map(r => [r.id, r.group]));
+    const existing = artistDiscographies[currentArtistFocus.id];
+    if (existing && existing.length > 0) {
+        artistDiscographies[currentArtistFocus.id] = existing.map(item => ({
+            ...item,
+            group: releaseMap.get(item.id) || item.group
+        }));
+        localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+        renderArtistDiscography();
+    }
+
     renderArtistAlbumPickerList();
 }
 
