@@ -83,93 +83,61 @@ function createRng(seed) {
 }
 
 // Generátor reálného Sharpie podpisu + čitelného názvu alba ve viditelné části CD
-// Generátor celoplošného Sharpie podpisu podle písmen interpreta + popisky po celém obvodu CD
 function generateSharpieDiscSVG(artistName, albumName, rating) {
-    const cleanArtist = (artistName || "Artist").trim();
-    const artistSeed = hashSeed(cleanArtist.toLowerCase());
+    const artistSeed = hashSeed((artistName || "artist").toLowerCase());
     const albumSeed = hashSeed((albumName || "album").toLowerCase());
     const randA = createRng(artistSeed);
     const randB = createRng(albumSeed);
 
-    // 1) Široký autogram přes horní polovinu CD (x: 34..186, y: 34..76) odvozený ze znaků jména interpreta
-    const letters = cleanArtist.replace(/\s+/g, " ").slice(0, 16);
-    let curX = 36 + randA() * 8;
-    const baseY = 58 + (randA() - 0.5) * 6;
+    const startX = 146 + randA() * 6;
+    const startY = 64 + randA() * 8;
+    const loopH = 22 + randA() * 10;
+    const loopW = 10 + randA() * 7;
 
-    // Výrazná kaligrafická smyčka prvního písmene
-    const initH = 24 + randA() * 10;
-    const initW = 14 + randA() * 8;
-    let sigPath = `M ${(curX - 4).toFixed(1)},${(baseY - initH * 0.55).toFixed(1)} `;
-    sigPath += `C ${(curX + initW * 1.4).toFixed(1)},${(baseY - initH * 1.25).toFixed(1)} `;
-    sigPath += `${(curX - initW * 0.5).toFixed(1)},${(baseY - initH * 0.9).toFixed(1)} `;
-    sigPath += `${(curX + 4).toFixed(1)},${(baseY + 5).toFixed(1)} `;
-    curX += 10;
+    let sigPath = `M ${startX.toFixed(1)},${startY.toFixed(1)} `;
+    sigPath += `C ${(startX + loopW * 1.3).toFixed(1)},${(startY - loopH).toFixed(1)} `;
+    sigPath += `${(startX - loopW * 0.4).toFixed(1)},${(startY - loopH * 0.85).toFixed(1)} `;
+    sigPath += `${(startX + 3).toFixed(1)},${(startY + 4).toFixed(1)} `;
 
-    const totalSpan = 132;
-    const stepX = Math.min(10.5, totalSpan / Math.max(letters.length, 6));
+    const peak2X = startX + 10 + randA() * 6;
+    const peak2Y = startY - (16 + randA() * 9);
+    sigPath += `Q ${(startX + 6).toFixed(1)},${(peak2Y - 2).toFixed(1)} ${peak2X.toFixed(1)},${(startY + 2).toFixed(1)} `;
 
-    for (let i = 1; i < letters.length; i++) {
-        const ch = letters[i];
-        if (ch === " ") {
-            // Mezera mezi jménem a příjmením -> nový ostrý tah další iniciály
-            curX += stepX * 0.9;
-            const capH = 19 + randA() * 9;
-            sigPath += `M ${curX.toFixed(1)},${(baseY + 3).toFixed(1)} `;
-            sigPath += `Q ${(curX + 6).toFixed(1)},${(baseY - capH).toFixed(1)} ${(curX + 11).toFixed(1)},${(baseY + 2).toFixed(1)} `;
-            curX += 11;
-            continue;
-        }
-
-        const isAscender = "bdfhkltABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(ch);
-        const isDescender = "gjpqy".includes(ch);
-        const isSharp = "vwmnrzx".includes(ch.toLowerCase());
-
-        const peakY = isAscender
-            ? baseY - (14 + randA() * 8)
-            : isDescender
-                ? baseY + (11 + randA() * 7)
-                : baseY - (5 + randA() * 6);
-
-        const nextX = Math.min(186, curX + stepX * (0.85 + randA() * 0.3));
-        const ctrlX = curX + (nextX - curX) * (isSharp ? 0.35 : 0.6) + 2;
-        const endY = baseY + (randA() - 0.5) * 4;
-
-        sigPath += `Q ${ctrlX.toFixed(1)},${peakY.toFixed(1)} ${nextX.toFixed(1)},${endY.toFixed(1)} `;
-        curX = nextX;
+    let curX = peak2X;
+    let curY = startY + 1;
+    const steps = 4 + Math.floor(randA() * 3);
+    for (let i = 0; i < steps; i++) {
+        const dx = 3.5 + randA() * 4;
+        const upH = (i % 2 === 0 ? -1 : 1) * (4 + randA() * 7);
+        const cpX = curX + dx * 0.5 + 2;
+        const cpY = curY + upH;
+        curX = Math.min(187, curX + dx);
+        curY = startY + (randA() - 0.45) * 6;
+        sigPath += `Q ${cpX.toFixed(1)},${cpY.toFixed(1)} ${curX.toFixed(1)},${curY.toFixed(1)} `;
     }
 
-    // Dlouhý podtrhávací švih přes celý podpis (zleva doprava až do viditelného pravého okraje)
-    const slashStartX = 44 + randA() * 10;
-    const slashStartY = baseY + 11 + randA() * 3;
-    const slashEndX = Math.min(188, Math.max(174, curX + 6));
-    const slashEndY = slashStartY - (6 + randA() * 6);
-    const slashCtrlX = (slashStartX + slashEndX) * 0.52;
-    const slashCtrlY = slashStartY + 5 + randA() * 4;
+    const slashStartX = startX - 3;
+    const slashStartY = startY + 8 + randA() * 3;
+    const slashEndX = Math.min(188, curX + 2);
+    const slashEndY = slashStartY - (5 + randA() * 5);
+    const slashCtrlX = (slashStartX + slashEndX) * 0.5;
+    const slashCtrlY = slashStartY + 3 + randA() * 3;
     const flourishPath = `M ${slashStartX.toFixed(1)},${slashStartY.toFixed(1)} Q ${slashCtrlX.toFixed(1)},${slashCtrlY.toFixed(1)} ${slashEndX.toFixed(1)},${slashEndY.toFixed(1)}`;
 
-    // 2) Název alba v pravém oblouku (viditelný hned v klidu, bez kolize s podpisem)
-    const albumLabel = escapeHtml(truncateLabel(albumName, 17));
-    const labelX = 169;
-    const labelY = 126;
-    const labelAngle = 76 + (randB() - 0.5) * 8;
+    const albumLabel = escapeHtml(truncateLabel(albumName, 16));
+    const labelX = 168;
+    const labelY = 122;
+    const labelAngle = 78 + (randB() - 0.5) * 10;
 
-    // 3) Čitelné jméno interpreta po spodním oblouku CD (objeví se při roztočení)
-    const artistLabel = escapeHtml(truncateLabel(cleanArtist.toUpperCase(), 20));
-    const artistX = 100;
-    const artistY = 174;
-    const artistAngle = -6 + (randA() - 0.5) * 10;
-
-    // 4) Sběratelská značka v levém oblouku (#hodnocení nebo značka CD), aby byl popsaný celý kruh
-    const leftTag = rating ? `#${rating}` : "SIGNED";
-    const leftAngle = -82 + (randB() - 0.5) * 12;
+    const scoreTag = rating ? `#${rating}` : "";
+    const scoreAngle = -16 + (randB() - 0.5) * 20;
 
     return `
         <svg class="cd-sharpie-svg" viewBox="0 0 200 200">
             <path class="sharpie-stroke-main" stroke-width="3.2" d="${sigPath}" />
             <path class="sharpie-stroke-thin" stroke-width="2.2" d="${flourishPath}" />
             <text class="sharpie-tag-album" x="${labelX}" y="${labelY}" text-anchor="middle" transform="rotate(${labelAngle.toFixed(1)} ${labelX} ${labelY})">${albumLabel}</text>
-            <text class="sharpie-tag-artist" x="${artistX}" y="${artistY}" text-anchor="middle" transform="rotate(${artistAngle.toFixed(1)} ${artistX} ${artistY})">${artistLabel}</text>
-            <text class="sharpie-tag-score" x="33" y="106" text-anchor="middle" transform="rotate(${leftAngle.toFixed(1)} 33 106)">${escapeHtml(leftTag)}</text>
+            ${scoreTag ? `<text class="sharpie-tag-score" x="58" y="136" text-anchor="middle" transform="rotate(${scoreAngle.toFixed(1)} 58 136)">${escapeHtml(scoreTag)}</text>` : ""}
         </svg>
     `;
 }
