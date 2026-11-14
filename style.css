@@ -517,6 +517,17 @@ h1 {
     opacity: 0.9;
 }
 
+.sharpie-artist-sig {
+    font-family: 'Reenie Beanie', cursive;
+    font-weight: 700;
+    fill: #0f0f13;
+    stroke: #0f0f13;
+    stroke-width: 0.75px;
+    stroke-linejoin: round;
+    letter-spacing: -0.5px;
+    opacity: 0.93;
+}
+
 /* PŘEDNÍ ČÁST PLASTOVÉ KRABIČKY (Z = +6px) */
 .cd-jewel-case {
     position: relative;
