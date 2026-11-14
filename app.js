@@ -12,6 +12,7 @@ let currentReviewContext = "artist"; // "artist" | "standalone"
 let availableArtistReleases = [];
 let pickerGroupFilter = "all";
 let freshlyUnboxedAlbumId = null;
+let cdRenderCounter = 0;
 
 // DOM
 const views = {
@@ -28,7 +29,7 @@ const modals = {
     review: document.getElementById("modal-review")
 };
 
-// Pomocná funkce pro přesné chronologické řazení (od nejstaršího po nejnovější)
+// Pomocné funkce
 function normalizeReleaseTimestamp(dateStr) {
     if (!dateStr) return 0;
     const parts = String(dateStr).split("-");
@@ -46,6 +47,19 @@ function sortChronologically(albums) {
     return [...albums].sort(
         (a, b) => normalizeReleaseTimestamp(a.release_date) - normalizeReleaseTimestamp(b.release_date)
     );
+}
+
+function escapeHtml(str) {
+    return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function truncateLabel(str, maxLen) {
+    const clean = String(str || "").trim();
+    return clean.length > maxLen ? clean.slice(0, maxLen - 1).trim() + "…" : clean;
 }
 
 // Start
@@ -110,8 +124,8 @@ function renderLibrary() {
             const card = document.createElement("div");
             card.className = "artist-simple-card";
             card.innerHTML = `
-                <img src="${artist.image}" alt="${artist.name}">
-                <h3>${artist.name}</h3>
+                <img src="${artist.image}" alt="${escapeHtml(artist.name)}">
+                <h3>${escapeHtml(artist.name)}</h3>
                 <div class="card-sub">${count > 0 ? `${count} ${count === 1 ? "nahrávka" : count < 5 ? "nahrávky" : "nahrávek"}` : "Prázdná diskografie"}</div>
             `;
             card.onclick = () => openArtistDetail(artist);
@@ -121,7 +135,7 @@ function renderLibrary() {
         contentGrid.className = "disco-grid";
         const sortedAlbums = sortChronologically(items);
         sortedAlbums.forEach(album => {
-            const card = createAlbumCard(album, "standalone");
+            const card = createAlbumCard(album, "standalone", album.artistName || "");
             contentGrid.appendChild(card);
         });
         freshlyUnboxedAlbumId = null;
@@ -187,18 +201,24 @@ function renderArtistDiscography() {
     }
 
     filtered.forEach(album => {
-        discoGrid.appendChild(createAlbumCard(album, "artist"));
+        discoGrid.appendChild(createAlbumCard(album, "artist", currentArtistFocus.name));
     });
     freshlyUnboxedAlbumId = null;
 }
 
-// 3D CD JEWEL CASE KARTA
-function createAlbumCard(album, context) {
+// 3D CD JEWEL CASE KARTA S RUČNĚ POPSANÝM CD A ROTACÍ PŘI HOVERU
+function createAlbumCard(album, context, artistName = "") {
     const review = userReviews[album.id] || {};
     const isListened = !!review.listened;
     const rating = review.rating;
     const year = getReleaseYear(album.release_date);
     const isJustUnboxed = isListened && freshlyUnboxedAlbumId === album.id;
+
+    const uid = ++cdRenderCounter;
+    const topArcId = `cd-top-arc-${uid}`;
+    const botArcId = `cd-bot-arc-${uid}`;
+    const discAlbumLabel = escapeHtml(truncateLabel(album.name, 26));
+    const discArtistLabel = escapeHtml(truncateLabel(artistName || album.artistName || "", 24));
 
     const div = document.createElement("div");
     div.className = `disco-item ${isListened ? "listened" : ""} ${isJustUnboxed ? "just-unboxed" : ""}`;
@@ -218,11 +238,26 @@ function createAlbumCard(album, context) {
     div.innerHTML = `
         <div class="cd-stage">
             <div class="cd-3d-rig">
-                <div class="cd-disc"></div>
+                <div class="cd-disc-slot">
+                    <div class="cd-disc">
+                        <svg class="cd-marker-svg" viewBox="0 0 200 200">
+                            <defs>
+                                <path id="${topArcId}" d="M 32,100 A 68,68 0 1,1 168,100" />
+                                <path id="${botArcId}" d="M 168,100 A 68,68 0 1,1 32,100" />
+                            </defs>
+                            <text class="cd-marker-album">
+                                <textPath href="#${topArcId}" startOffset="50%" text-anchor="middle">${discAlbumLabel}</textPath>
+                            </text>
+                            <text class="cd-marker-artist">
+                                <textPath href="#${botArcId}" startOffset="50%" text-anchor="middle">${discArtistLabel}</textPath>
+                            </text>
+                        </svg>
+                    </div>
+                </div>
                 <div class="cd-jewel-case">
                     <div class="cd-spine"></div>
                     <div class="cd-booklet">
-                        <img src="${album.image}" alt="${album.name}" loading="lazy">
+                        <img src="${album.image}" alt="${escapeHtml(album.name)}" loading="lazy">
                     </div>
                     <div class="cd-acrylic-lid"></div>
                     ${shrinkwrapHtml}
@@ -231,7 +266,7 @@ function createAlbumCard(album, context) {
             </div>
         </div>
         <div class="disco-meta">
-            <h4>${album.name}</h4>
+            <h4>${escapeHtml(album.name)}</h4>
             <div class="disco-subline">
                 ${year ? `<span>${year}</span>` : ""}
                 ${isListened && rating ? `<span>· ${rating} / 10</span>` : ""}
@@ -344,7 +379,7 @@ function renderArtistAlbumPickerList() {
             <div class="list-item-left">
                 <img src="${release.image}" alt="">
                 <div class="list-item-info">
-                    <span class="list-item-title">${release.name}</span>
+                    <span class="list-item-title">${escapeHtml(release.name)}</span>
                     <span class="list-item-sub">${getReleaseYear(release.release_date)} · ${groupLabels[release.group] || "Album"}</span>
                 </div>
             </div>
@@ -471,14 +506,15 @@ document.getElementById("search-input")?.addEventListener("input", (e) => {
 
         results.forEach(res => {
             const img = res.images?.[0]?.url || "https://via.placeholder.com/150";
+            const artistNames = (res.artists || []).map(a => a.name).join(", ");
             const div = document.createElement("div");
             div.className = "list-item";
             div.innerHTML = `
                 <div class="list-item-left">
                     <img src="${img}" alt="">
                     <div class="list-item-info">
-                        <span class="list-item-title">${res.name}</span>
-                        ${type === "album" ? `<span class="list-item-sub">${getReleaseYear(res.release_date)}</span>` : ""}
+                        <span class="list-item-title">${escapeHtml(res.name)}</span>
+                        ${type === "album" ? `<span class="list-item-sub">${escapeHtml(artistNames)}${artistNames ? " · " : ""}${getReleaseYear(res.release_date)}</span>` : ""}
                     </div>
                 </div>
                 <span class="picker-badge">+ Přidat</span>
@@ -493,6 +529,7 @@ document.getElementById("search-input")?.addEventListener("input", (e) => {
                         type: targetType,
                         id: res.id,
                         name: res.name,
+                        artistName: type === "album" ? artistNames : "",
                         image: img,
                         release_date: res.release_date || null
                     });
