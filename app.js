@@ -11,6 +11,7 @@ let currentReviewAlbum = null;
 let currentReviewContext = "artist"; // "artist" | "standalone"
 let availableArtistReleases = [];
 let pickerGroupFilter = "all";
+let freshlyUnboxedAlbumId = null;
 
 // DOM
 const views = {
@@ -123,6 +124,7 @@ function renderLibrary() {
             const card = createAlbumCard(album, "standalone");
             contentGrid.appendChild(card);
         });
+        freshlyUnboxedAlbumId = null;
     }
 }
 
@@ -187,6 +189,7 @@ function renderArtistDiscography() {
     filtered.forEach(album => {
         discoGrid.appendChild(createAlbumCard(album, "artist"));
     });
+    freshlyUnboxedAlbumId = null;
 }
 
 // 3D CD JEWEL CASE KARTA
@@ -195,11 +198,11 @@ function createAlbumCard(album, context) {
     const isListened = !!review.listened;
     const rating = review.rating;
     const year = getReleaseYear(album.release_date);
+    const isJustUnboxed = isListened && freshlyUnboxedAlbumId === album.id;
 
     const div = document.createElement("div");
-    div.className = `disco-item ${isListened ? "listened" : ""}`;
+    div.className = `disco-item ${isListened ? "listened" : ""} ${isJustUnboxed ? "just-unboxed" : ""}`;
 
-    // Fólie pro neposlechnutý kus vs. OBI pásek pro poslechnutý kus
     const shrinkwrapHtml = !isListened
         ? `<div class="cd-shrinkwrap"><span class="cd-hype-sticker">SEALED</span></div>`
         : "";
@@ -236,19 +239,21 @@ function createAlbumCard(album, context) {
         </div>
     `;
 
-    // Interaktivní 3D náklon a posun akrylového odlesku podle kurzoru
+    // Interaktivní 3D náklon, odlesk víčka a lom světla na vykukujícím CD
     div.addEventListener("pointermove", (e) => {
         const rect = div.getBoundingClientRect();
-        const nx = (e.clientX - rect.left) / rect.width;  // 0 .. 1
-        const ny = (e.clientY - rect.top) / rect.height;  // 0 .. 1
+        const nx = (e.clientX - rect.left) / rect.width;
+        const ny = (e.clientY - rect.top) / rect.height;
 
         const rotateY = (nx - 0.5) * 22;
         const rotateX = (0.5 - ny) * 20;
+        const discAngle = 35 + (nx - 0.5) * 95 + (ny - 0.5) * 45;
 
         div.style.setProperty("--rx", `${rotateX.toFixed(2)}deg`);
         div.style.setProperty("--ry", `${rotateY.toFixed(2)}deg`);
         div.style.setProperty("--gx", `${(nx * 100).toFixed(1)}%`);
         div.style.setProperty("--gy", `${(ny * 100).toFixed(1)}%`);
+        div.style.setProperty("--disc-angle", `${discAngle.toFixed(1)}deg`);
     });
 
     div.addEventListener("pointerleave", () => {
@@ -256,6 +261,7 @@ function createAlbumCard(album, context) {
         div.style.setProperty("--ry", "0deg");
         div.style.setProperty("--gx", "30%");
         div.style.setProperty("--gy", "20%");
+        div.style.setProperty("--disc-angle", "35deg");
     });
 
     div.onclick = () => openReviewModal(album, context);
@@ -396,12 +402,17 @@ function toggleReviewInputs(enabled) {
 document.getElementById("save-review-btn")?.addEventListener("click", () => {
     if (currentReviewAlbum) {
         const albumId = currentReviewAlbum.id;
+        const wasListened = !!userReviews[albumId]?.listened;
+
         if (revListened.checked) {
             userReviews[albumId] = {
                 listened: true,
                 rating: revRating.value || null,
                 review: revText.value || ""
             };
+            if (!wasListened) {
+                freshlyUnboxedAlbumId = albumId;
+            }
         } else {
             delete userReviews[albumId];
         }
