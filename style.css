@@ -263,95 +263,131 @@ h1 {
     --ry: 0deg;
     --gx: 30%;
     --gy: 20%;
+    --disc-angle: 35deg;
 }
 
 /* 3D Scéna s prostorem vpravo pro vysunutý CD disk */
 .cd-stage {
     position: relative;
     width: 100%;
-    aspect-ratio: 1.12 / 1;
-    perspective: 950px;
+    aspect-ratio: 1.14 / 1;
+    perspective: 1000px;
     display: flex;
     align-items: center;
 }
 
 .cd-3d-rig {
     position: relative;
-    width: 88%;
+    width: 86%;
     aspect-ratio: 1 / 1;
     transform-style: preserve-3d;
-    transform: rotateX(var(--rx)) rotateY(var(--ry));
-    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateZ(0px) rotateX(var(--rx)) rotateY(var(--ry)) scale(0.985);
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Poslechnuté album sedí v prostoru o kousek blíž ke kameře */
+.disco-item.listened .cd-3d-rig {
+    transform: translateZ(6px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1);
 }
 
 .disco-item:hover .cd-3d-rig {
-    transition: transform 0.08s ease-out;
+    transform: translateZ(14px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1.015);
+    transition: transform 0.1s ease-out;
 }
 
-/* VYKUKUJÍCÍ IRIDESCENT CD DISK (viditelný u poslechnutých alb) */
+/* VYKUKUJÍCÍ IRIDESCENT CD DISK */
 .cd-disc {
     position: absolute;
-    top: 4%;
+    top: 3.5%;
     right: 2%;
-    width: 92%;
-    height: 92%;
+    width: 93%;
+    height: 93%;
     border-radius: 50%;
-    transform: translateZ(-6px) translateX(0) rotate(0deg);
+    transform: translateZ(-8px) translateX(0%) rotate(0deg);
     opacity: 0;
     pointer-events: none;
     transition:
-        transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-        opacity 0.35s ease;
+        transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.4s ease;
     background:
+        /* Středový průhledný prstenec a upínací trn */
         radial-gradient(circle at center,
-            transparent 0 15%,
-            rgba(255, 255, 255, 0.45) 15.5% 17%,
-            rgba(30, 30, 30, 0.85) 17.5% 21%,
-            rgba(255, 255, 255, 0.25) 21.5% 22.5%,
-            transparent 23%
+            rgba(13, 13, 13, 0.96) 0 11%,
+            rgba(255, 255, 255, 0.5) 11.4% 12.6%,
+            rgba(35, 35, 38, 0.88) 13% 18.5%,
+            rgba(255, 255, 255, 0.35) 19% 20.2%,
+            transparent 20.8%
         ),
+        /* Jemný laserový odlesk na hraně */
+        radial-gradient(circle at 72% 32%,
+            rgba(255, 255, 255, 0.42) 0%,
+            transparent 48%
+        ),
+        /* Dynamická difrakce reagující na úhel náklonu (--disc-angle) */
         conic-gradient(
-            from 35deg,
-            #c9ced6 0deg,
-            #ffffff 32deg,
-            #9bb7d4 65deg,
-            #d7b4d8 105deg,
-            #f3e6b3 145deg,
-            #9ed4c4 185deg,
-            #ffffff 218deg,
-            #b2bdd0 260deg,
-            #e2b8c8 305deg,
-            #c9ced6 360deg
+            from var(--disc-angle),
+            #c5cbd4 0deg,
+            #ffffff 28deg,
+            #96b4d6 62deg,
+            #d9b3da 104deg,
+            #f2e3ae 148deg,
+            #98d2c1 190deg,
+            #ffffff 222deg,
+            #aeb9ce 265deg,
+            #e1b5c7 310deg,
+            #c5cbd4 360deg
         );
     box-shadow:
-        inset 0 0 0 1.5px rgba(255, 255, 255, 0.65),
-        inset 0 0 14px rgba(0, 0, 0, 0.35),
-        0 10px 22px rgba(0, 0, 0, 0.75);
+        inset 0 0 0 1.5px rgba(255, 255, 255, 0.7),
+        inset 0 0 16px rgba(0, 0, 0, 0.38),
+        0 12px 26px rgba(0, 0, 0, 0.8);
 }
 
-/* Jemné drážkování povrchu CD */
+/* Datové stopy na povrchu disku */
 .cd-disc::after {
     content: "";
     position: absolute;
-    inset: 23%;
+    inset: 21%;
     border-radius: 50%;
     background: repeating-radial-gradient(
         circle at center,
-        rgba(255, 255, 255, 0.08) 0px,
-        rgba(255, 255, 255, 0.08) 1px,
+        rgba(255, 255, 255, 0.09) 0px,
+        rgba(255, 255, 255, 0.09) 1px,
         transparent 1px,
-        transparent 3px
+        transparent 3.5px
     );
 }
 
-/* Poslechnutá deska: disk vykukuje z pravé strany krabičky */
+/* Klidový stav poslechnuté desky: disk decentně vykukuje */
 .disco-item.listened .cd-disc {
     opacity: 1;
-    transform: translateZ(-6px) translateX(22%) rotate(18deg);
+    transform: translateZ(-8px) translateX(21%) rotate(16deg);
 }
 
+/* Hover stav poslechnuté desky: plynulé vysunutí a pootočení s setrvačností */
 .disco-item.listened:hover .cd-disc {
-    transform: translateZ(-4px) translateX(31%) rotate(42deg);
+    transform: translateZ(-6px) translateX(34%) rotate(54deg);
+    transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Jednorázová animace vysunutí při čerstvém označení "Poslechnuto" */
+.disco-item.just-unboxed .cd-disc {
+    animation: cd-eject-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes cd-eject-reveal {
+    0% {
+        opacity: 0.4;
+        transform: translateZ(-8px) translateX(0%) rotate(-35deg);
+    }
+    55% {
+        opacity: 1;
+        transform: translateZ(-6px) translateX(33%) rotate(34deg);
+    }
+    100% {
+        opacity: 1;
+        transform: translateZ(-8px) translateX(21%) rotate(16deg);
+    }
 }
 
 /* HLAVNÍ PLASTOVÁ KRABIČKA (JEWEL CASE) */
@@ -360,14 +396,14 @@ h1 {
     width: 100%;
     height: 100%;
     border-radius: 3px 5px 5px 3px;
-    background: #141414;
+    background: #121212;
     transform-style: preserve-3d;
     display: flex;
     overflow: hidden;
     box-shadow:
-        -1px 0 0 rgba(255, 255, 255, 0.14),
-        0 1px 0 rgba(255, 255, 255, 0.12),
-        0 16px 32px rgba(0, 0, 0, 0.78);
+        -1px 0 0 rgba(255, 255, 255, 0.1),
+        0 1px 0 rgba(255, 255, 255, 0.08),
+        0 14px 28px rgba(0, 0, 0, 0.72);
     transition: box-shadow 0.35s ease;
 }
 
@@ -375,7 +411,7 @@ h1 {
     box-shadow:
         -1px 0 0 rgba(255, 255, 255, 0.24),
         0 1px 0 rgba(255, 255, 255, 0.2),
-        0 20px 38px rgba(0, 0, 0, 0.88);
+        0 20px 40px rgba(0, 0, 0, 0.88);
 }
 
 /* Levý vroubkovaný plastový hřbet krabičky */
@@ -403,13 +439,26 @@ h1 {
     flex: 1;
     height: 100%;
     overflow: hidden;
+    background: #111;
 }
 
+/* NEPOSLECHNUTO: -30 % vizuální živosti (utlumená sytost a jas pod fólií) */
 .cd-booklet img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    filter: saturate(0.68) brightness(0.84) contrast(0.94);
+    transition: filter 0.45s ease, transform 0.45s ease;
+}
+
+.disco-item:not(.listened):hover .cd-booklet img {
+    filter: saturate(0.82) brightness(0.91) contrast(0.97);
+}
+
+/* POSLECHNUTO: 100 % plná živost a kontrast tisku */
+.disco-item.listened .cd-booklet img {
+    filter: saturate(1.03) brightness(1) contrast(1.02);
 }
 
 /* Akrylový odlesk a panty víčka krabičky */
@@ -437,7 +486,6 @@ h1 {
         inset -1px 0 1px rgba(255, 255, 255, 0.2);
 }
 
-/* Dva charakteristické plastové zarážkové body CD víčka */
 .cd-acrylic-lid::before,
 .cd-acrylic-lid::after {
     content: "";
@@ -467,41 +515,41 @@ h1 {
     z-index: 5;
     pointer-events: none;
     background:
+        rgba(15, 15, 17, 0.14),
         linear-gradient(
             112deg,
             transparent 18%,
-            rgba(255, 255, 255, 0.16) 22%,
+            rgba(255, 255, 255, 0.15) 22%,
             rgba(255, 255, 255, 0.03) 25%,
             transparent 31%,
             transparent 64%,
-            rgba(255, 255, 255, 0.13) 68%,
+            rgba(255, 255, 255, 0.12) 68%,
             transparent 72%
         ),
         repeating-linear-gradient(
             -32deg,
-            rgba(255, 255, 255, 0.025) 0px,
-            rgba(255, 255, 255, 0.025) 2px,
+            rgba(255, 255, 255, 0.022) 0px,
+            rgba(255, 255, 255, 0.022) 2px,
             transparent 2px,
             transparent 9px
         );
-    box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.35);
 }
 
-/* Minimalistická sběratelská samolepka na fólii */
 .cd-hype-sticker {
     position: absolute;
     bottom: 10px;
     right: 10px;
     padding: 3px 6px;
     border-radius: 2px;
-    background: rgba(18, 18, 18, 0.78);
+    background: rgba(16, 16, 16, 0.76);
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.16);
     font-size: 8.5px;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.62);
 }
 
 /* =========================================================
@@ -557,13 +605,13 @@ h1 {
 /* POPISKY POD CD KRABIČKOU */
 .disco-meta {
     margin-top: 10px;
-    padding-right: 12%;
+    padding-right: 14%;
 }
 
 .disco-item h4 {
     font-size: 13.5px;
     font-weight: 400;
-    color: #888888;
+    color: #787878;
     line-height: 1.35;
     transition: color 0.2s;
 }
@@ -579,11 +627,11 @@ h1 {
     align-items: center;
     gap: 8px;
     font-size: 11.5px;
-    color: #595959;
+    color: #525252;
 }
 
 .disco-item.listened .disco-subline {
-    color: #8c8578;
+    color: #968e80;
 }
 
 .empty-state {
