@@ -3,102 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hudební Atlas - Kartotéka</title>
+    <title>Hudební Atlas</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- DOMOVSKÁ STRÁNKA -->
-    <div id="home-view" class="view active">
-        <header class="main-header">
-            <h1>Můj Hudební Atlas</h1>
-            <button id="login-btn" class="btn-primary">Přihlásit do Spotify</button>
-        </header>
-        <div class="grid-dashboard" id="dashboard-grid"></div>
-    </div>
-
-    <!-- STRÁNKA KATEGORIE -->
-    <div id="category-view" class="view">
-        <header class="cat-header">
-            <div class="cat-header-left">
-                <button class="btn-icon view-back-btn" data-target="home">← Zpět na přehled</button>
-                <h1 id="cat-title">Kategorie</h1>
-            </div>
-            <div class="cat-header-right">
+    <!-- HLAVNÍ KARTOTÉKA -->
+    <div id="library-view" class="view active">
+        <header class="top-header">
+            <div class="header-left">
+                <h1>Hudební Atlas</h1>
                 <div class="view-toggle">
                     <button id="toggle-artists" class="toggle-btn active">Interpreti</button>
                     <button id="toggle-albums" class="toggle-btn">Alba</button>
                 </div>
+            </div>
+            <div class="header-right">
                 <button id="add-item-btn" class="btn-primary">+ Přidat</button>
+                <button id="login-btn" class="btn-spotify">Připojit Spotify</button>
             </div>
         </header>
-        <div id="content-grid" class="content-grid artists-mode"></div>
+        <div id="content-grid" class="content-grid"></div>
     </div>
 
     <!-- DETAIL INTERPRETA -->
     <div id="artist-detail-view" class="view">
-        <header class="cat-header">
-            <div class="cat-header-left">
-                <button class="btn-icon view-back-btn" data-target="category">← Zpět do kategorie</button>
-                <h1 id="artist-detail-title">Jméno interpreta</h1>
+        <header class="top-header">
+            <div class="header-left">
+                <button id="back-to-library" class="btn-icon">← Zpět</button>
+                <div class="artist-heading">
+                    <img id="artist-detail-avatar" src="" alt="">
+                    <h1 id="artist-detail-title">Jméno interpreta</h1>
+                </div>
             </div>
-            <div class="filter-checkboxes">
-                <label><input type="checkbox" id="filter-album" checked> Alba</label>
-                <label><input type="checkbox" id="filter-single"> Singly / EP</label>
-                <label><input type="checkbox" id="filter-features"> Features</label>
+            <div class="header-right">
+                <div class="filter-pills">
+                    <label class="filter-pill">
+                        <input type="checkbox" id="filter-album" checked>
+                        <span>Alba <small id="count-album"></small></span>
+                    </label>
+                    <label class="filter-pill">
+                        <input type="checkbox" id="filter-single" checked>
+                        <span>Singly / EP <small id="count-single"></small></span>
+                    </label>
+                    <label class="filter-pill">
+                        <input type="checkbox" id="filter-features" checked>
+                        <span>Features <small id="count-features"></small></span>
+                    </label>
+                </div>
+                <button id="open-album-picker-btn" class="btn-primary">+ Přidat alba</button>
             </div>
         </header>
         <div id="discography-grid" class="disco-grid"></div>
     </div>
 
-    <!-- MODAL: HODNOCENÍ ALBA -->
-    <div id="modal-review" class="modal">
-        <div class="modal-content review-content">
-            <img id="review-cover" src="" alt="">
-            <div class="review-form">
-                <h2 id="review-title">Název alba</h2>
-                <div class="review-status">
-                    <label>
-                        <input type="checkbox" id="review-listened"> Poslechnuto
-                    </label>
-                </div>
-                <div class="input-group">
-                    <label>Hodnocení (0 - 10)</label>
-                    <input type="number" id="review-rating" min="0" max="10" step="0.1" placeholder="Např. 8.5" disabled>
-                </div>
-                <div class="input-group">
-                    <label>Komentář</label>
-                    <textarea id="review-text" placeholder="Co si o tom myslíš?" disabled></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn-close close-modal">Zrušit</button>
-                    <button id="save-review-btn" class="btn-primary">Uložit</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: PLAYLISTY -->
-    <div id="modal-playlist" class="modal">
-        <div class="modal-content">
-            <h2>Vyber playlist pro dlaždici</h2>
-            <input type="text" id="playlist-search-input" placeholder="Hledat ve svých playlistech...">
-            <div id="playlist-list" class="list-container"></div>
-            <button class="btn-close close-modal">Zrušit</button>
-        </div>
-    </div>
-
-    <!-- MODAL: HLEDÁNÍ -->
+    <!-- MODAL: PŘIDÁNÍ INTERPRETA NEBO ALBA DO KARTOTÉKY -->
     <div id="modal-search" class="modal">
         <div class="modal-content">
-            <h2>Přidat do kategorie</h2>
+            <div class="modal-header">
+                <h2>Přidat do kartotéky</h2>
+                <button class="btn-icon close-modal">✕</button>
+            </div>
             <input type="text" id="search-input" placeholder="Hledat interpreta nebo album...">
             <div class="search-filters">
                 <label><input type="radio" name="search-type" value="artist" checked> Interpreti</label>
                 <label><input type="radio" name="search-type" value="album"> Alba</label>
             </div>
             <div id="search-results" class="list-container"></div>
-            <button class="btn-close close-modal">Zavřít</button>
+        </div>
+    </div>
+
+    <!-- MODAL: RUČNÍ VÝBĚR ALB DO DISKOGRAFIE INTERPRETA -->
+    <div id="modal-artist-albums" class="modal">
+        <div class="modal-content modal-wide">
+            <div class="modal-header">
+                <div>
+                    <h2>Doplnit diskografii</h2>
+                    <p class="modal-subtitle" id="picker-subtitle">Vyber nahrávky, které chceš zařadit</p>
+                </div>
+                <button class="btn-icon close-modal">✕</button>
+            </div>
+            <div class="picker-controls">
+                <input type="text" id="picker-filter-input" placeholder="Filtrovat podle názvu...">
+                <div class="picker-tabs">
+                    <button class="picker-tab active" data-group="all">Vše</button>
+                    <button class="picker-tab" data-group="album">Alba</button>
+                    <button class="picker-tab" data-group="single">Singly / EP</button>
+                    <button class="picker-tab" data-group="appears_on">Features</button>
+                </div>
+            </div>
+            <div id="artist-album-results" class="list-container"></div>
+            <div class="modal-footer">
+                <button class="btn-primary close-modal">Hotovo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ZÁZNAM POSLECHU A HODNOCENÍ -->
+    <div id="modal-review" class="modal">
+        <div class="modal-content review-content">
+            <img id="review-cover" src="" alt="">
+            <div class="review-form">
+                <div class="review-head">
+                    <h2 id="review-title">Název alba</h2>
+                    <span id="review-year" class="review-meta"></span>
+                </div>
+                <label class="switch-row">
+                    <input type="checkbox" id="review-listened">
+                    <span>Poslechnuto</span>
+                </label>
+                <div class="input-group">
+                    <label for="review-rating">Hodnocení (0 – 10)</label>
+                    <input type="number" id="review-rating" min="0" max="10" step="0.1" placeholder="např. 8.5" disabled>
+                </div>
+                <div class="input-group">
+                    <label for="review-text">Poznámka</label>
+                    <textarea id="review-text" rows="3" placeholder="Dojem, atmosféra, klíčové momenty..." disabled></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button id="remove-album-btn" class="btn-danger" type="button">Odebrat</button>
+                    <div class="modal-actions-right">
+                        <button class="btn-ghost close-modal" type="button">Zrušit</button>
+                        <button id="save-review-btn" class="btn-primary" type="button">Uložit</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
