@@ -90,7 +90,6 @@ function renderLibrary() {
     if (!contentGrid) return;
     contentGrid.innerHTML = "";
 
-    // Deduplikace podle ID zachová i dříve uložené položky bez závislosti na playlistech
     const seenIds = new Set();
     const items = savedMusic.filter(item => {
         if (item.type !== currentMode || seenIds.has(item.id)) return false;
@@ -190,6 +189,7 @@ function renderArtistDiscography() {
     });
 }
 
+// 3D CD JEWEL CASE KARTA
 function createAlbumCard(album, context) {
     const review = userReviews[album.id] || {};
     const isListened = !!review.listened;
@@ -199,26 +199,64 @@ function createAlbumCard(album, context) {
     const div = document.createElement("div");
     div.className = `disco-item ${isListened ? "listened" : ""}`;
 
-    const dotHtml = isListened ? `<span class="listened-dot" title="Poslechnuto"></span>` : "";
-    const scoreHtml = isListened && rating ? `<span class="score-tag">${rating}</span>` : "";
-    const yearHtml = year ? `<span>${year}</span>` : "";
+    // Fólie pro neposlechnutý kus vs. OBI pásek pro poslechnutý kus
+    const shrinkwrapHtml = !isListened
+        ? `<div class="cd-shrinkwrap"><span class="cd-hype-sticker">SEALED</span></div>`
+        : "";
+
+    const obiHtml = isListened
+        ? `
+        <div class="cd-obi">
+            <span class="cd-obi-year">${year || "CD"}</span>
+            ${rating ? `<span class="cd-obi-line"></span><span class="cd-obi-score">${rating}</span>` : ""}
+        </div>`
+        : "";
 
     div.innerHTML = `
-        <div class="cover-frame">
-            <img src="${album.image}" alt="${album.name}">
-            <div class="cover-hover-hint">${isListened ? "Upravit záznam" : "Zapsat poslech"}</div>
+        <div class="cd-stage">
+            <div class="cd-3d-rig">
+                <div class="cd-disc"></div>
+                <div class="cd-jewel-case">
+                    <div class="cd-spine"></div>
+                    <div class="cd-booklet">
+                        <img src="${album.image}" alt="${album.name}" loading="lazy">
+                    </div>
+                    <div class="cd-acrylic-lid"></div>
+                    ${shrinkwrapHtml}
+                    ${obiHtml}
+                </div>
+            </div>
         </div>
         <div class="disco-meta">
-            <div class="disco-title-row">
-                <h4>${album.name}</h4>
-            </div>
+            <h4>${album.name}</h4>
             <div class="disco-subline">
-                ${dotHtml}
-                ${yearHtml}
-                ${scoreHtml}
+                ${year ? `<span>${year}</span>` : ""}
+                ${isListened && rating ? `<span>· ${rating} / 10</span>` : ""}
             </div>
         </div>
     `;
+
+    // Interaktivní 3D náklon a posun akrylového odlesku podle kurzoru
+    div.addEventListener("pointermove", (e) => {
+        const rect = div.getBoundingClientRect();
+        const nx = (e.clientX - rect.left) / rect.width;  // 0 .. 1
+        const ny = (e.clientY - rect.top) / rect.height;  // 0 .. 1
+
+        const rotateY = (nx - 0.5) * 22;
+        const rotateX = (0.5 - ny) * 20;
+
+        div.style.setProperty("--rx", `${rotateX.toFixed(2)}deg`);
+        div.style.setProperty("--ry", `${rotateY.toFixed(2)}deg`);
+        div.style.setProperty("--gx", `${(nx * 100).toFixed(1)}%`);
+        div.style.setProperty("--gy", `${(ny * 100).toFixed(1)}%`);
+    });
+
+    div.addEventListener("pointerleave", () => {
+        div.style.setProperty("--rx", "0deg");
+        div.style.setProperty("--ry", "0deg");
+        div.style.setProperty("--gx", "30%");
+        div.style.setProperty("--gy", "20%");
+    });
 
     div.onclick = () => openReviewModal(album, context);
     return div;
@@ -253,7 +291,6 @@ async function openArtistAlbumPicker() {
 
     availableArtistReleases = await SpotifyAPI.getArtistReleases(currentArtistFocus.id);
 
-    // Aktualizuje typ (Album / Singl / Feature) i u dříve zařazených položek
     const releaseMap = new Map(availableArtistReleases.map(r => [r.id, r.group]));
     const existing = artistDiscographies[currentArtistFocus.id];
     if (existing && existing.length > 0) {
@@ -308,7 +345,6 @@ function renderArtistAlbumPickerList() {
             <span class="picker-badge">${isAdded ? "Zařazeno" : "+ Přidat"}</span>
         `;
 
-        // Kliknutím plynule přidáš nebo odebereš bez zavírání okna; diskografie na pozadí se hned seřadí chronologicky
         row.onclick = () => {
             const artistId = currentArtistFocus.id;
             const currentList = artistDiscographies[artistId] || [];
