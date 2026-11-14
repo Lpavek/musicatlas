@@ -310,7 +310,7 @@ h1 {
 
 .disco-item.listened .cd-disc-slot {
     opacity: 1;
-    transform: translateZ(-8px) translateX(27%);
+    transform: translateZ(-8px) translateX(29%);
 }
 
 .disco-item.listened:hover .cd-disc-slot {
@@ -437,10 +437,10 @@ h1 {
 
 .sharpie-tag-album {
     font-family: 'Permanent Marker', cursive;
-    font-size: 13.5px;
+    font-size: 11.5px;
     fill: #121216;
-    opacity: 0.88;
-    letter-spacing: 0.5px;
+    opacity: 0.9;
+    letter-spacing: 0.4px;
 }
 
 .sharpie-tag-score {
