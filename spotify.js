@@ -112,7 +112,7 @@ const SpotifyAPI = {
         return type === "artist" ? (data.artists?.items || []) : (data.albums?.items || []);
     },
     // Načte nabídku nahrávek interpreta pro ruční výběr (respektuje limit=10 na stránku)
-    async getArtistReleases(artistId) {
+async getArtistReleases(artistId) {
         const token = await this.getToken();
         if (!token) return [];
         try {
@@ -126,7 +126,7 @@ const SpotifyAPI = {
             const seen = new Set();
             let pages = 0;
 
-            while (url && pages < 5) {
+            while (url && pages < 8) {
                 const response = await fetch(url, {
                     headers: { Authorization: "Bearer " + token }
                 });
@@ -134,14 +134,25 @@ const SpotifyAPI = {
 
                 const data = await response.json();
                 (data.items || []).forEach(item => {
-                    const key = `${item.name.toLowerCase()}__${item.album_group || "album"}`;
-                    if (item && !seen.has(key)) {
+                    if (!item) return;
+
+                    const isMainArtist = (item.artists || []).some(a => a.id === artistId);
+                    let group = item.album_group || item.album_type || "album";
+
+                    if (!item.album_group && !isMainArtist) {
+                        group = "appears_on";
+                    } else if (group === "compilation") {
+                        group = isMainArtist ? "album" : "appears_on";
+                    }
+
+                    const key = `${item.name.toLowerCase()}__${group}`;
+                    if (!seen.has(key)) {
                         seen.add(key);
                         unique.push({
                             id: item.id,
                             name: item.name,
                             image: item.images?.[0]?.url || "https://via.placeholder.com/300",
-                            group: item.album_group || "album",
+                            group: group,
                             release_date: item.release_date || "1900-01-01"
                         });
                     }
