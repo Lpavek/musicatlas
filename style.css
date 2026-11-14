@@ -252,7 +252,7 @@ h1 {
    ========================================================= */
 .disco-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
     gap: 42px 34px;
 }
 
@@ -269,7 +269,7 @@ h1 {
 .cd-stage {
     position: relative;
     width: 100%;
-    aspect-ratio: 1.15 / 1;
+    aspect-ratio: 1.16 / 1;
     perspective: 1000px;
     display: flex;
     align-items: center;
@@ -277,7 +277,7 @@ h1 {
 
 .cd-3d-rig {
     position: relative;
-    width: 85%;
+    width: 84%;
     aspect-ratio: 1 / 1;
     transform-style: preserve-3d;
     transform: translateZ(0px) rotateX(var(--rx)) rotateY(var(--ry)) scale(0.985);
@@ -296,10 +296,10 @@ h1 {
 /* SLOT PRO VYSUNUTÍ CD Z KRABIČKY */
 .cd-disc-slot {
     position: absolute;
-    top: 3.5%;
+    top: 3%;
     right: 2%;
-    width: 93%;
-    height: 93%;
+    width: 94%;
+    height: 94%;
     transform: translateZ(-8px) translateX(0%);
     opacity: 0;
     pointer-events: none;
@@ -310,11 +310,11 @@ h1 {
 
 .disco-item.listened .cd-disc-slot {
     opacity: 1;
-    transform: translateZ(-8px) translateX(24%);
+    transform: translateZ(-8px) translateX(27%);
 }
 
 .disco-item.listened:hover .cd-disc-slot {
-    transform: translateZ(-6px) translateX(38%);
+    transform: translateZ(-6px) translateX(42%);
 }
 
 .disco-item.just-unboxed .cd-disc-slot {
@@ -328,24 +328,24 @@ h1 {
     }
     55% {
         opacity: 1;
-        transform: translateZ(-6px) translateX(36%);
+        transform: translateZ(-6px) translateX(40%);
     }
     100% {
         opacity: 1;
-        transform: translateZ(-8px) translateX(24%);
+        transform: translateZ(-8px) translateX(27%);
     }
 }
 
-/* SAMOTNÝ ROTUJÍCÍ CD DISK S POPSANÝM POVRCHEM FIXOU */
+/* SAMOTNÝ ROTUJÍCÍ CD DISK S PODEPSANÝM POVRCHEM FIXOU */
 .cd-disc {
     position: relative;
     width: 100%;
     height: 100%;
     border-radius: 50%;
     overflow: hidden;
-    transform: rotate(22deg);
+    transform: rotate(0deg);
     background:
-        /* Středový průhledný prstenec */
+        /* Středový průhledný prstenec a plastový kruh */
         radial-gradient(circle at center,
             rgba(13, 13, 13, 0.96) 0 11%,
             rgba(255, 255, 255, 0.55) 11.4% 12.6%,
@@ -355,7 +355,7 @@ h1 {
         ),
         /* Světelný odlesk na polykarbonátu */
         radial-gradient(circle at 72% 32%,
-            rgba(255, 255, 255, 0.45) 0%,
+            rgba(255, 255, 255, 0.42) 0%,
             transparent 48%
         ),
         /* Iridescent spektrum reagující na náklon */
@@ -396,42 +396,66 @@ h1 {
 
 /* Plynulé otáčení disku při najetí myší */
 .disco-item.listened:hover .cd-disc {
-    animation: cd-spin 3.8s linear infinite;
+    animation: cd-spin 4.2s linear infinite;
 }
 
 @keyframes cd-spin {
     from {
-        transform: rotate(22deg);
+        transform: rotate(0deg);
     }
     to {
-        transform: rotate(382deg);
+        transform: rotate(360deg);
     }
 }
 
-/* RUČNĚ PSANÝ POPIS FIXOU NA CD */
-.cd-marker-svg {
+/* SHARPIE AUTOGRAM & RUČNÍ POPIS FIXOU NA CD */
+.cd-sharpie-svg {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
     z-index: 2;
+    mix-blend-mode: multiply;
 }
 
-.cd-marker-album {
-    font-family: 'Caveat', cursive;
-    font-size: 16.5px;
+.sharpie-stroke-main {
+    fill: none;
+    stroke: #111114;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.92;
+}
+
+.sharpie-stroke-thin {
+    fill: none;
+    stroke: #16161a;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.84;
+}
+
+.sharpie-tag-album {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 13.5px;
+    fill: #121216;
+    opacity: 0.88;
+    letter-spacing: 0.5px;
+}
+
+.sharpie-tag-score {
+    font-family: 'Permanent Marker', cursive;
+    font-size: 16px;
+    fill: #111115;
+    opacity: 0.9;
+}
+
+.sharpie-tag-note {
+    font-family: 'Reenie Beanie', cursive;
+    font-size: 19px;
     font-weight: 700;
-    fill: rgba(16, 16, 20, 0.86);
-    letter-spacing: 0.4px;
-}
-
-.cd-marker-artist {
-    font-family: 'Caveat', cursive;
-    font-size: 14px;
-    font-weight: 600;
-    fill: rgba(24, 24, 30, 0.76);
-    letter-spacing: 0.6px;
+    fill: #141418;
+    opacity: 0.82;
 }
 
 /* HLAVNÍ PLASTOVÁ KRABIČKA (JEWEL CASE) */
@@ -645,7 +669,7 @@ h1 {
 /* POPISKY POD CD KRABIČKOU */
 .disco-meta {
     margin-top: 10px;
-    padding-right: 15%;
+    padding-right: 16%;
 }
 
 .disco-item h4 {
