@@ -476,7 +476,6 @@ h1 {
 }
 
 /* SHARPIE AUTOGRAM & RUČNÍ POPIS FIXOU NA CD */
-/* SHARPIE AUTOGRAM & RUČNÍ POPIS FIXOU NA CD */
 .cd-sharpie-svg {
     position: absolute;
     inset: 0;
@@ -505,26 +504,36 @@ h1 {
 
 .sharpie-tag-album {
     font-family: 'Permanent Marker', cursive;
-    font-size: 11px;
+    font-size: 11.5px;
     fill: #121216;
     opacity: 0.9;
     letter-spacing: 0.4px;
 }
 
-.sharpie-tag-artist {
-    font-family: 'Permanent Marker', cursive;
-    font-size: 10.5px;
-    fill: #15151a;
-    opacity: 0.84;
-    letter-spacing: 0.7px;
-}
-
 .sharpie-tag-score {
     font-family: 'Permanent Marker', cursive;
-    font-size: 15px;
+    font-size: 16px;
     fill: #111115;
     opacity: 0.9;
 }
+
+/* PŘEDNÍ ČÁST PLASTOVÉ KRABIČKY (Z = +6px) */
+.cd-jewel-case {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 2px 5px 5px 2px;
+    background: #121212;
+    transform: translateZ(6px);
+    transform-style: preserve-3d;
+    display: flex;
+    overflow: hidden;
+    box-shadow:
+        -3px 0 10px rgba(0, 0, 0, 0.65),
+        0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
 /* Levý vroubkovaný plastový hřbet krabičky */
 .cd-spine {
     width: 8.5%;
