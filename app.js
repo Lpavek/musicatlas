@@ -84,6 +84,51 @@ function createRng(seed) {
 
 // Generátor reálného Sharpie podpisu + čitelného názvu alba ve viditelné části CD
 // Generátor velkého Sharpie autogramu interpreta přes téměř celé CD + názvu alba
+// Kaligrafický tvar iniciály pro Sharpie autogram
+function buildInitialGlyph(ch, x, y, scale, rand) {
+    const c = (ch || "A").toUpperCase();
+    const s = scale;
+    const tilt = 6 + rand() * 5;
+
+    if ("VWU".includes(c)) {
+        return `M ${(x - 6 * s).toFixed(1)},${(y - 26 * s).toFixed(1)} `
+            + `C ${(x - 2 * s).toFixed(1)},${(y - 8 * s).toFixed(1)} ${(x - 1 * s).toFixed(1)},${(y + 10 * s).toFixed(1)} ${(x + 2 * s).toFixed(1)},${(y + 12 * s).toFixed(1)} `
+            + `C ${(x + 7 * s).toFixed(1)},${(y + 6 * s).toFixed(1)} ${(x + 15 * s + tilt).toFixed(1)},${(y - 22 * s).toFixed(1)} ${(x + 22 * s + tilt).toFixed(1)},${(y - 34 * s).toFixed(1)} `
+            + `C ${(x + 24 * s + tilt).toFixed(1)},${(y - 36 * s).toFixed(1)} ${(x + 14 * s).toFixed(1)},${(y - 6 * s).toFixed(1)} ${(x + 16 * s).toFixed(1)},${(y + 4 * s).toFixed(1)} `;
+    }
+    if ("SCG".includes(c)) {
+        return `M ${(x + 18 * s + tilt).toFixed(1)},${(y - 26 * s).toFixed(1)} `
+            + `C ${(x + 4 * s).toFixed(1)},${(y - 36 * s).toFixed(1)} ${(x - 10 * s).toFixed(1)},${(y - 20 * s).toFixed(1)} ${(x + 6 * s).toFixed(1)},${(y - 10 * s).toFixed(1)} `
+            + `C ${(x + 22 * s).toFixed(1)},${(y - 1 * s).toFixed(1)} ${(x + 12 * s).toFixed(1)},${(y + 16 * s).toFixed(1)} ${(x - 6 * s).toFixed(1)},${(y + 10 * s).toFixed(1)} `
+            + `C ${(x - 12 * s).toFixed(1)},${(y + 7 * s).toFixed(1)} ${(x + 4 * s).toFixed(1)},${(y - 2 * s).toFixed(1)} ${(x + 16 * s).toFixed(1)},${(y + 2 * s).toFixed(1)} `;
+    }
+    if ("PBRDK".includes(c)) {
+        return `M ${(x + 4 * s).toFixed(1)},${(y + 14 * s).toFixed(1)} `
+            + `L ${(x + 12 * s + tilt).toFixed(1)},${(y - 34 * s).toFixed(1)} `
+            + `C ${(x + 28 * s + tilt).toFixed(1)},${(y - 36 * s).toFixed(1)} ${(x + 28 * s).toFixed(1)},${(y - 14 * s).toFixed(1)} ${(x + 8 * s).toFixed(1)},${(y - 11 * s).toFixed(1)} `
+            + `C ${(x + 18 * s).toFixed(1)},${(y - 6 * s).toFixed(1)} ${(x + 18 * s).toFixed(1)},${(y + 4 * s).toFixed(1)} ${(x + 22 * s).toFixed(1)},${(y + 5 * s).toFixed(1)} `;
+    }
+    if ("MNHA".includes(c)) {
+        return `M ${(x - 4 * s).toFixed(1)},${(y + 10 * s).toFixed(1)} `
+            + `C ${(x + 2 * s).toFixed(1)},${(y - 12 * s).toFixed(1)} ${(x + 8 * s + tilt).toFixed(1)},${(y - 32 * s).toFixed(1)} ${(x + 10 * s + tilt).toFixed(1)},${(y - 32 * s).toFixed(1)} `
+            + `L ${(x + 11 * s).toFixed(1)},${(y + 4 * s).toFixed(1)} `
+            + `C ${(x + 15 * s).toFixed(1)},${(y - 10 * s).toFixed(1)} ${(x + 20 * s + tilt).toFixed(1)},${(y - 24 * s).toFixed(1)} ${(x + 22 * s + tilt).toFixed(1)},${(y - 24 * s).toFixed(1)} `
+            + `L ${(x + 23 * s).toFixed(1)},${(y + 4 * s).toFixed(1)} `;
+    }
+    if ("JLTFI".includes(c)) {
+        return `M ${(x + 2 * s).toFixed(1)},${(y - 24 * s).toFixed(1)} `
+            + `C ${(x + 12 * s).toFixed(1)},${(y - 30 * s).toFixed(1)} ${(x + 24 * s + tilt).toFixed(1)},${(y - 32 * s).toFixed(1)} ${(x + 20 * s + tilt).toFixed(1)},${(y - 30 * s).toFixed(1)} `
+            + `L ${(x + 9 * s).toFixed(1)},${(y + 14 * s).toFixed(1)} `
+            + `C ${(x + 5 * s).toFixed(1)},${(y + 22 * s).toFixed(1)} ${(x - 4 * s).toFixed(1)},${(y + 14 * s).toFixed(1)} ${(x + 14 * s).toFixed(1)},${(y + 2 * s).toFixed(1)} `;
+    }
+    // Výchozí velká smyčka (E, O, Q, Z, Y, X...)
+    return `M ${(x + 16 * s + tilt).toFixed(1)},${(y - 28 * s).toFixed(1)} `
+        + `C ${(x - 4 * s).toFixed(1)},${(y - 34 * s).toFixed(1)} ${(x - 10 * s).toFixed(1)},${(y + 12 * s).toFixed(1)} ${(x + 10 * s).toFixed(1)},${(y + 10 * s).toFixed(1)} `
+        + `C ${(x + 22 * s).toFixed(1)},${(y + 8 * s).toFixed(1)} ${(x + 16 * s).toFixed(1)},${(y - 8 * s).toFixed(1)} ${(x + 6 * s).toFixed(1)},${(y - 4 * s).toFixed(1)} `
+        + `C ${(x + 12 * s).toFixed(1)},${(y + 2 * s).toFixed(1)} ${(x + 18 * s).toFixed(1)},${(y + 4 * s).toFixed(1)} ${(x + 22 * s).toFixed(1)},${(y + 3 * s).toFixed(1)} `;
+}
+
+// Generátor autentického kaligrafického Sharpie podpisu přes celé CD
 function generateSharpieDiscSVG(artistName, albumName, rating) {
     const cleanArtist = String(artistName || "Artist").trim();
     const cleanAlbum = String(albumName || "Album").trim();
@@ -93,48 +138,78 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
     const randA = createRng(artistSeed);
     const randB = createRng(albumSeed);
 
-    // Dynamická velikost podpisu podle délky jména, aby vždy pokryl ~80–85 % šířky disku
-    const displayArtist = escapeHtml(truncateLabel(cleanArtist, 22));
-    const len = displayArtist.length;
-    const sigFontSize = len <= 6 ? 56 : len <= 10 ? 48 : len <= 14 ? 41 : len <= 18 ? 35 : 30;
-    const sigAngle = -23 + (randA() - 0.5) * 8;
+    const words = cleanArtist.split(/\s+/).filter(Boolean);
+    const firstInitial = words[0]?.[0] || "A";
+    const secondInitial = words.length > 1 ? words[words.length - 1][0] : (cleanArtist[1] || "s");
 
-    // Velká vstupní smyčka fixy na začátku podpisu (levá strana CD)
-    const loopX = 24 + randA() * 6;
-    const loopY = 104 + randA() * 8;
-    const swashIn = `M ${loopX.toFixed(1)},${loopY.toFixed(1)} `
-        + `C ${(loopX - 10).toFixed(1)},${(loopY - 34).toFixed(1)} `
-        + `${(loopX + 26).toFixed(1)},${(loopY - 42).toFixed(1)} `
-        + `${(loopX + 14).toFixed(1)},${(loopY - 8).toFixed(1)}`;
+    // Podpis jde úhlopříčně z levého spodního okraje (x: 34, y: 128) do pravého horního srpku (x: 186, y: 54)
+    let curX = 36 + randA() * 6;
+    let curY = 124 + randA() * 6;
+    const slope = -0.44; // stoupání úhlopříčky směrem doprava nahoru
 
-    // Dlouhý podtrhávací švih fixou přes téměř celý disk (zleva až do pravého vykukujícího okraje)
-    const uStartX = 26 + randA() * 6;
-    const uStartY = 122 + randA() * 6;
-    const uEndX = 182 - randA() * 4;
-    const uEndY = 66 + randA() * 8;
-    const uCtrlX = 104 + (randA() - 0.5) * 14;
-    const uCtrlY = 102 + (randA() - 0.5) * 10;
+    // 1) První velká iniciála (např. "V")
+    let sigPath = buildInitialGlyph(firstInitial, curX, curY, 1.15, randA);
+    curX += 26;
+    curY += 26 * slope;
+
+    // 2) Rychlý kurzívní dozvuk prvního jména (ostrý cik-cak tahy fixou)
+    const midWaves = 3 + Math.floor(randA() * 2);
+    for (let i = 0; i < midWaves; i++) {
+        const dx = 6 + randA() * 4;
+        const spike = (i % 2 === 0 ? -1 : 1) * (7 + randA() * 8);
+        const cpX = curX + dx * 0.4 + 4;
+        const cpY = curY + dx * slope + spike;
+        curX += dx;
+        curY += dx * slope;
+        sigPath += `Q ${cpX.toFixed(1)},${cpY.toFixed(1)} ${curX.toFixed(1)},${curY.toFixed(1)} `;
+    }
+
+    // 3) Druhá velká iniciála (např. "S") — posazená blízko pravé poloviny disku
+    curX += 6;
+    curY += 6 * slope;
+    sigPath += buildInitialGlyph(secondInitial, curX, curY, 1.22, randA);
+    curX += 28;
+    curY += 28 * slope;
+
+    // 4) Závěrečné rychlé vlny a dlouhý výjezd fixy až do vykukujícího pravého okraje CD
+    const endWaves = 4 + Math.floor(randA() * 3);
+    for (let i = 0; i < endWaves; i++) {
+        const dx = 6.5 + randA() * 4.5;
+        const spike = (i % 2 === 0 ? -1 : 1) * (8 + randA() * 11);
+        const cpX = curX + dx * 0.35 + 5;
+        const cpY = curY + dx * slope + spike;
+        curX = Math.min(184, curX + dx);
+        curY += dx * slope;
+        sigPath += `Q ${cpX.toFixed(1)},${cpY.toFixed(1)} ${curX.toFixed(1)},${curY.toFixed(1)} `;
+    }
+    // Ostrý závěrečný švih ven
+    sigPath += `Q ${(curX + 7).toFixed(1)},${(curY - 12).toFixed(1)} ${Math.min(189, curX + 12).toFixed(1)},${(curY - 5).toFixed(1)}`;
+
+    // 5) Dlouhý podtrhávací tah fixou přes celé CD rovnoběžně s podpisem
+    const uStartX = 34 + randA() * 6;
+    const uStartY = 142 + randA() * 5;
+    const uEndX = 185 - randA() * 4;
+    const uEndY = 74 + randA() * 6;
+    const uCtrlX = 112 + (randA() - 0.5) * 14;
+    const uCtrlY = 114 + (randA() - 0.5) * 10;
     const underlineSlash = `M ${uStartX.toFixed(1)},${uStartY.toFixed(1)} Q ${uCtrlX.toFixed(1)},${uCtrlY.toFixed(1)} ${uEndX.toFixed(1)},${uEndY.toFixed(1)}`;
 
-    // Název alba podél spodního pravého oblouku (čitelné i v klidovém stavu)
+    // 6) Ručně připsaný název alba u spodního pravého okraje
     const albumLabel = escapeHtml(truncateLabel(cleanAlbum, 16));
-    const labelX = 163;
-    const labelY = 136;
-    const labelAngle = 64 + (randB() - 0.5) * 8;
+    const labelX = 162;
+    const labelY = 138;
+    const labelAngle = 62 + (randB() - 0.5) * 8;
 
-    // Značka hodnocení (#8.5) na spodní levé straně disku
+    // 7) Hodnocení (#8.5) na opačné straně disku
     const scoreTag = rating ? `#${rating}` : "";
     const scoreAngle = -18 + (randB() - 0.5) * 18;
 
     return `
         <svg class="cd-sharpie-svg" viewBox="0 0 200 200">
-            <path class="sharpie-stroke-thin" stroke-width="2.6" d="${swashIn}" />
-            <g transform="translate(100 84) rotate(${sigAngle.toFixed(1)}) skewX(-11)">
-                <text class="sharpie-artist-sig" x="0" y="0" font-size="${sigFontSize}" text-anchor="middle" dominant-baseline="central">${displayArtist}</text>
-            </g>
-            <path class="sharpie-stroke-main" stroke-width="3.2" d="${underlineSlash}" />
+            <path class="sharpie-stroke-main" stroke-width="3.5" d="${sigPath}" />
+            <path class="sharpie-stroke-thin" stroke-width="2.4" d="${underlineSlash}" />
             <text class="sharpie-tag-album" x="${labelX}" y="${labelY}" text-anchor="middle" transform="rotate(${labelAngle.toFixed(1)} ${labelX} ${labelY})">${albumLabel}</text>
-            ${scoreTag ? `<text class="sharpie-tag-score" x="64" y="156" text-anchor="middle" transform="rotate(${scoreAngle.toFixed(1)} 64 156)">${escapeHtml(scoreTag)}</text>` : ""}
+            ${scoreTag ? `<text class="sharpie-tag-score" x="66" y="162" text-anchor="middle" transform="rotate(${scoreAngle.toFixed(1)} 66 162)">${escapeHtml(scoreTag)}</text>` : ""}
         </svg>
     `;
 }
