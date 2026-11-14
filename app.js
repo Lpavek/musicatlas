@@ -42,9 +42,10 @@ function getReleaseYear(dateStr) {
     return dateStr ? String(dateStr).slice(0, 4) : "";
 }
 
+// Chronologické řazení od nejnovějšího po nejstarší
 function sortChronologically(albums) {
     return [...albums].sort(
-        (a, b) => normalizeReleaseTimestamp(a.release_date) - normalizeReleaseTimestamp(b.release_date)
+        (a, b) => normalizeReleaseTimestamp(b.release_date) - normalizeReleaseTimestamp(a.release_date)
     );
 }
 
@@ -81,7 +82,6 @@ function createRng(seed) {
     };
 }
 
-// Generátor reálného Sharpie podpisu + ručně napsaného názvu alba na CD
 // Generátor reálného Sharpie podpisu + čitelného názvu alba ve viditelné části CD
 function generateSharpieDiscSVG(artistName, albumName, rating) {
     const artistSeed = hashSeed((artistName || "artist").toLowerCase());
@@ -89,7 +89,6 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
     const randA = createRng(artistSeed);
     const randB = createRng(albumSeed);
 
-    // 1) Autogram interpreta v horním pravém srpku (x: 144..186, y: 42..82) — celý viditelný i v klidu
     const startX = 146 + randA() * 6;
     const startY = 64 + randA() * 8;
     const loopH = 22 + randA() * 10;
@@ -125,13 +124,11 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
     const slashCtrlY = slashStartY + 3 + randA() * 3;
     const flourishPath = `M ${slashStartX.toFixed(1)},${slashStartY.toFixed(1)} Q ${slashCtrlX.toFixed(1)},${slashCtrlY.toFixed(1)} ${slashEndX.toFixed(1)},${slashEndY.toFixed(1)}`;
 
-    // 2) Ručně psaný název alba podél pravého oblouku disku (x: 168, y: 122) — 100% čitelný v defaultu
     const albumLabel = escapeHtml(truncateLabel(albumName, 16));
     const labelX = 168;
     const labelY = 122;
     const labelAngle = 78 + (randB() - 0.5) * 10;
 
-    // 3) Značka hodnocení (#8.5) na opačné straně disku (objeví se při roztočení)
     const scoreTag = rating ? `#${rating}` : "";
     const scoreAngle = -16 + (randB() - 0.5) * 20;
 
@@ -289,7 +286,7 @@ function renderArtistDiscography() {
     freshlyUnboxedAlbumId = null;
 }
 
-// 3D CD JEWEL CASE KARTA S SHARPIE PODPISEM A ROTACÍ PŘI HOVERU
+// 3D CD JEWEL CASE KARTA S REÁLNOU HLOUBKOU A ARCHIVNÍM OBI PÁSKEM
 function createAlbumCard(album, context, artistName = "") {
     const review = userReviews[album.id] || {};
     const isListened = !!review.listened;
@@ -307,8 +304,18 @@ function createAlbumCard(album, context, artistName = "") {
     const obiHtml = isListened
         ? `
         <div class="cd-obi">
-            <span class="cd-obi-year">${year || "CD"}</span>
-            ${rating ? `<span class="cd-obi-line"></span><span class="cd-obi-score">${rating}</span>` : ""}
+            <div class="cd-obi-top">
+                <span class="cd-obi-kicker">REL</span>
+                <span class="cd-obi-year">${year || "CD"}</span>
+            </div>
+            <div class="cd-obi-mid">
+                <span class="cd-obi-rule"></span>
+                <span class="cd-obi-stamp">ATLAS</span>
+                <span class="cd-obi-rule"></span>
+            </div>
+            <div class="cd-obi-bottom">
+                ${rating ? `<span class="cd-obi-score">${rating}</span>` : `<span class="cd-obi-stamp">STEREO</span>`}
+            </div>
         </div>`
         : "";
 
@@ -317,6 +324,10 @@ function createAlbumCard(album, context, artistName = "") {
     div.innerHTML = `
         <div class="cd-stage">
             <div class="cd-3d-rig">
+                <div class="cd-back-tray"></div>
+                <div class="cd-side-left"></div>
+                <div class="cd-side-top"></div>
+                <div class="cd-side-bottom"></div>
                 <div class="cd-disc-slot">
                     <div class="cd-disc">
                         ${sharpieSvg}
@@ -347,8 +358,8 @@ function createAlbumCard(album, context, artistName = "") {
         const nx = (e.clientX - rect.left) / rect.width;
         const ny = (e.clientY - rect.top) / rect.height;
 
-        const rotateY = (nx - 0.5) * 22;
-        const rotateX = (0.5 - ny) * 20;
+        const rotateY = -7 + (nx - 0.5) * 24;
+        const rotateX = 2 + (0.5 - ny) * 22;
         const discAngle = 35 + (nx - 0.5) * 95 + (ny - 0.5) * 45;
 
         div.style.setProperty("--rx", `${rotateX.toFixed(2)}deg`);
@@ -359,9 +370,9 @@ function createAlbumCard(album, context, artistName = "") {
     });
 
     div.addEventListener("pointerleave", () => {
-        div.style.setProperty("--rx", "0deg");
-        div.style.setProperty("--ry", "0deg");
-        div.style.setProperty("--gx", "30%");
+        div.style.setProperty("--rx", "2deg");
+        div.style.setProperty("--ry", "-7deg");
+        div.style.setProperty("--gx", "28%");
         div.style.setProperty("--gy", "20%");
         div.style.setProperty("--disc-angle", "35deg");
     });
