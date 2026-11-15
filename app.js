@@ -1,19 +1,224 @@
 // Stav aplikace
 let savedMusic = JSON.parse(localStorage.getItem("atlas_music")) || [];
-// Ručně kurátorované diskografie podle ID interpreta: { [artistId]: [ { id, name, image, group, release_date }, ... ] }
 let artistDiscographies = JSON.parse(localStorage.getItem("atlas_artist_discographies")) || {};
-// Osobní záznamy poslechu podle ID alba: { [albumId]: { listened: true, rating: "8.5", review: "..." } }
 let userReviews = JSON.parse(localStorage.getItem("atlas_user_reviews")) || {};
 
 let currentMode = "artists";
 let currentArtistFocus = null;
 let currentReviewAlbum = null;
-let currentReviewContext = "artist"; // "artist" | "standalone"
+let currentReviewContext = "artist";
 let availableArtistReleases = [];
 let pickerGroupFilter = "all";
 let freshlyUnboxedAlbumId = null;
 
-// DOM
+// =========================================================
+// CLOUD SYNC (GITHUB GIST) — SDÍLENÍ MEZI PC A MOBILEM
+// =========================================================
+const GIST_FILENAME = "musicatlas-data.json";
+const GIST_DESCRIPTION = "Hudební Atlas - Cloud Sync Data";
+
+let syncToken = localStorage.getItem("atlas_sync_token") || "";
+let syncGistId = localStorage.getItem("atlas_sync_gist_id") || "";
+let syncPushTimer = null;
+
+function setSyncUI(state, text) {
+    const btn = document.getElementById("sync-status-btn");
+    const label = document.getElementById("sync-status-label");
+    const detail = document.getElementById("sync-detail-state");
+    if (btn) {
+        btn.classList.remove("is-synced", "is-syncing", "is-error");
+        if (state) btn.classList.add(`is-${state}`);
+    }
+    if (label && text) label.innerText = text;
+    if (detail && text) detail.innerText = text;
+}
+
+function saveLocalState() {
+    localStorage.setItem("atlas_music", JSON.stringify(savedMusic));
+    localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+    localStorage.setItem("atlas_user_reviews", JSON.stringify(userReviews));
+}
+
+function persistAllChanges() {
+    saveLocalState();
+    if (!syncToken) return;
+
+    clearTimeout(syncPushTimer);
+    setSyncUI("syncing", "Ukládám…");
+    syncPushTimer = setTimeout(() => {
+        pushToCloud();
+    }, 600);
+}
+
+async function findOrCreateGist() {
+    if (!syncToken) return null;
+
+    // 1) Pokud už máme uložené ID Gistu, ověříme ho
+    if (syncGistId) {
+        const check = await fetch(`https://api.github.com/gists/${syncGistId}`, {
+            headers: { Authorization: `Bearer ${syncToken}` }
+        });
+        if (check.ok) return await check.json();
+        syncGistId = "";
+        localStorage.removeItem("atlas_sync_gist_id");
+    }
+
+    // 2) Hledáme existující Gist podle názvu souboru
+    const listRes = await fetch("https://api.github.com/gists?per_page=100", {
+        headers: { Authorization: `Bearer ${syncToken}` }
+    });
+    if (!listRes.ok) throw new Error("Neplatný GitHub token");
+
+    const gists = await listRes.json();
+    const existing = gists.find(g => g.files && g.files[GIST_FILENAME]);
+    if (existing) {
+        syncGistId = existing.id;
+        localStorage.setItem("atlas_sync_gist_id", syncGistId);
+        const fullRes = await fetch(`https://api.github.com/gists/${syncGistId}`, {
+            headers: { Authorization: `Bearer ${syncToken}` }
+        });
+        return await fullRes.json();
+    }
+
+    // 3) Jinak vytvoříme nový soukromý Gist s aktuálními daty
+    const payload = {
+        updatedAt: Date.now(),
+        savedMusic,
+        artistDiscographies,
+        userReviews
+    };
+
+    const createRes = await fetch("https://api.github.com/gists", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${syncToken}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            description: GIST_DESCRIPTION,
+            public: false,
+            files: {
+                [GIST_FILENAME]: {
+                    content: JSON.stringify(payload, null, 2)
+                }
+            }
+        })
+    });
+    if (!createRes.ok) throw new Error("Nepodařilo se vytvořit Gist");
+    const created = await createRes.json();
+    syncGistId = created.id;
+    localStorage.setItem("atlas_sync_gist_id", syncGistId);
+    return created;
+}
+
+async function pullFromCloud(silent = false) {
+    if (!syncToken) return false;
+    if (!silent) setSyncUI("syncing", "Načítám…");
+
+    try {
+        const gist = await findOrCreateGist();
+        const fileObj = gist?.files?.[GIST_FILENAME];
+        if (!fileObj || !fileObj.content) return false;
+
+        const cloudData = JSON.parse(fileObj.content);
+        const cloudHasData =
+            (cloudData.savedMusic && cloudData.savedMusic.length > 0) ||
+            (cloudData.artistDiscographies && Object.keys(cloudData.artistDiscographies).length > 0) ||
+            (cloudData.userReviews && Object.keys(cloudData.userReviews).length > 0);
+
+        const localHasData =
+            savedMusic.length > 0 ||
+            Object.keys(artistDiscographies).length > 0 ||
+            Object.keys(userReviews).length > 0;
+
+        // Pokud je cloud prázdný a lokálně máme data, nahrajeme lokální data nahoru
+        if (!cloudHasData && localHasData) {
+            await pushToCloud();
+            return true;
+        }
+
+        if (cloudHasData) {
+            savedMusic = cloudData.savedMusic || [];
+            artistDiscographies = cloudData.artistDiscographies || {};
+            userReviews = cloudData.userReviews || {};
+            saveLocalState();
+            refreshCurrentView();
+        }
+
+        const timeEl = document.getElementById("sync-last-time");
+        if (timeEl) timeEl.innerText = new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+        setSyncUI("synced", "Synced");
+        return true;
+    } catch (err) {
+        console.error("Sync pull error:", err);
+        setSyncUI("error", "Chyba syncu");
+        return false;
+    }
+}
+
+async function pushToCloud() {
+    if (!syncToken) return false;
+    setSyncUI("syncing", "Ukládám…");
+
+    try {
+        await findOrCreateGist();
+        const payload = {
+            updatedAt: Date.now(),
+            savedMusic,
+            artistDiscographies,
+            userReviews
+        };
+
+        const res = await fetch(`https://api.github.com/gists/${syncGistId}`, {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bearer ${syncToken}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                files: {
+                    [GIST_FILENAME]: {
+                        content: JSON.stringify(payload, null, 2)
+                    }
+                }
+            })
+        });
+        if (!res.ok) throw new Error("Chyba při zápisu do Gistu");
+
+        const timeEl = document.getElementById("sync-last-time");
+        if (timeEl) timeEl.innerText = new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+        setSyncUI("synced", "Synced");
+        return true;
+    } catch (err) {
+        console.error("Sync push error:", err);
+        setSyncUI("error", "Chyba syncu");
+        return false;
+    }
+}
+
+function checkMagicPairingHash() {
+    const hash = window.location.hash || "";
+    const match = hash.match(/sync=([^&]+)/);
+    if (match && match[1]) {
+        syncToken = decodeURIComponent(match[1]).trim();
+        syncGistId = "";
+        localStorage.setItem("atlas_sync_token", syncToken);
+        localStorage.removeItem("atlas_sync_gist_id");
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+}
+
+function refreshCurrentView() {
+    if (currentArtistFocus) {
+        renderArtistDiscography();
+    } else {
+        renderLibrary();
+    }
+}
+
+// =========================================================
+// DOM & POMOCNÉ FUNKCE
+// =========================================================
 const views = {
     library: document.getElementById("library-view"),
     artistDetail: document.getElementById("artist-detail-view")
@@ -25,10 +230,10 @@ const discoGrid = document.getElementById("discography-grid");
 const modals = {
     search: document.getElementById("modal-search"),
     artistAlbums: document.getElementById("modal-artist-albums"),
-    review: document.getElementById("modal-review")
+    review: document.getElementById("modal-review"),
+    sync: document.getElementById("modal-sync")
 };
 
-// Pomocné funkce
 function normalizeReleaseTimestamp(dateStr) {
     if (!dateStr) return 0;
     const parts = String(dateStr).split("-");
@@ -42,7 +247,6 @@ function getReleaseYear(dateStr) {
     return dateStr ? String(dateStr).slice(0, 4) : "";
 }
 
-// Chronologické řazení od nejnovějšího po nejstarší
 function sortChronologically(albums) {
     return [...albums].sort(
         (a, b) => normalizeReleaseTimestamp(b.release_date) - normalizeReleaseTimestamp(a.release_date)
@@ -62,7 +266,6 @@ function truncateLabel(str, maxLen) {
     return clean.length > maxLen ? clean.slice(0, maxLen - 1).trim() + "…" : clean;
 }
 
-// Deterministický hash a generátor pro autentický Sharpie autogram
 function hashSeed(str) {
     let h = 2166136261;
     for (let i = 0; i < str.length; i++) {
@@ -82,9 +285,6 @@ function createRng(seed) {
     };
 }
 
-// Generátor reálného Sharpie podpisu + čitelného názvu alba ve viditelné části CD
-// Generátor velkého Sharpie autogramu interpreta přes téměř celé CD + názvu alba
-// Kaligrafický tvar iniciály pro Sharpie autogram
 function buildInitialGlyph(ch, x, y, scale, rand) {
     const c = (ch || "A").toUpperCase();
     const s = scale;
@@ -121,14 +321,12 @@ function buildInitialGlyph(ch, x, y, scale, rand) {
             + `L ${(x + 9 * s).toFixed(1)},${(y + 14 * s).toFixed(1)} `
             + `C ${(x + 5 * s).toFixed(1)},${(y + 22 * s).toFixed(1)} ${(x - 4 * s).toFixed(1)},${(y + 14 * s).toFixed(1)} ${(x + 14 * s).toFixed(1)},${(y + 2 * s).toFixed(1)} `;
     }
-    // Výchozí velká smyčka (E, O, Q, Z, Y, X...)
     return `M ${(x + 16 * s + tilt).toFixed(1)},${(y - 28 * s).toFixed(1)} `
         + `C ${(x - 4 * s).toFixed(1)},${(y - 34 * s).toFixed(1)} ${(x - 10 * s).toFixed(1)},${(y + 12 * s).toFixed(1)} ${(x + 10 * s).toFixed(1)},${(y + 10 * s).toFixed(1)} `
         + `C ${(x + 22 * s).toFixed(1)},${(y + 8 * s).toFixed(1)} ${(x + 16 * s).toFixed(1)},${(y - 8 * s).toFixed(1)} ${(x + 6 * s).toFixed(1)},${(y - 4 * s).toFixed(1)} `
         + `C ${(x + 12 * s).toFixed(1)},${(y + 2 * s).toFixed(1)} ${(x + 18 * s).toFixed(1)},${(y + 4 * s).toFixed(1)} ${(x + 22 * s).toFixed(1)},${(y + 3 * s).toFixed(1)} `;
 }
 
-// Generátor autentického kaligrafického Sharpie podpisu přes celé CD
 function generateSharpieDiscSVG(artistName, albumName, rating) {
     const cleanArtist = String(artistName || "Artist").trim();
     const cleanAlbum = String(albumName || "Album").trim();
@@ -142,17 +340,14 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
     const firstInitial = words[0]?.[0] || "A";
     const secondInitial = words.length > 1 ? words[words.length - 1][0] : (cleanArtist[1] || "s");
 
-    // Podpis jde úhlopříčně z levého spodního okraje (x: 34, y: 128) do pravého horního srpku (x: 186, y: 54)
     let curX = 36 + randA() * 6;
     let curY = 124 + randA() * 6;
-    const slope = -0.44; // stoupání úhlopříčky směrem doprava nahoru
+    const slope = -0.44;
 
-    // 1) První velká iniciála (např. "V")
     let sigPath = buildInitialGlyph(firstInitial, curX, curY, 1.15, randA);
     curX += 26;
     curY += 26 * slope;
 
-    // 2) Rychlý kurzívní dozvuk prvního jména (ostrý cik-cak tahy fixou)
     const midWaves = 3 + Math.floor(randA() * 2);
     for (let i = 0; i < midWaves; i++) {
         const dx = 6 + randA() * 4;
@@ -164,14 +359,12 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
         sigPath += `Q ${cpX.toFixed(1)},${cpY.toFixed(1)} ${curX.toFixed(1)},${curY.toFixed(1)} `;
     }
 
-    // 3) Druhá velká iniciála (např. "S") — posazená blízko pravé poloviny disku
     curX += 6;
     curY += 6 * slope;
     sigPath += buildInitialGlyph(secondInitial, curX, curY, 1.22, randA);
     curX += 28;
     curY += 28 * slope;
 
-    // 4) Závěrečné rychlé vlny a dlouhý výjezd fixy až do vykukujícího pravého okraje CD
     const endWaves = 4 + Math.floor(randA() * 3);
     for (let i = 0; i < endWaves; i++) {
         const dx = 6.5 + randA() * 4.5;
@@ -182,10 +375,8 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
         curY += dx * slope;
         sigPath += `Q ${cpX.toFixed(1)},${cpY.toFixed(1)} ${curX.toFixed(1)},${curY.toFixed(1)} `;
     }
-    // Ostrý závěrečný švih ven
     sigPath += `Q ${(curX + 7).toFixed(1)},${(curY - 12).toFixed(1)} ${Math.min(189, curX + 12).toFixed(1)},${(curY - 5).toFixed(1)}`;
 
-    // 5) Dlouhý podtrhávací tah fixou přes celé CD rovnoběžně s podpisem
     const uStartX = 34 + randA() * 6;
     const uStartY = 142 + randA() * 5;
     const uEndX = 185 - randA() * 4;
@@ -194,13 +385,11 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
     const uCtrlY = 114 + (randA() - 0.5) * 10;
     const underlineSlash = `M ${uStartX.toFixed(1)},${uStartY.toFixed(1)} Q ${uCtrlX.toFixed(1)},${uCtrlY.toFixed(1)} ${uEndX.toFixed(1)},${uEndY.toFixed(1)}`;
 
-    // 6) Ručně připsaný název alba u spodního pravého okraje
     const albumLabel = escapeHtml(truncateLabel(cleanAlbum, 16));
     const labelX = 162;
     const labelY = 138;
     const labelAngle = 62 + (randB() - 0.5) * 8;
 
-    // 7) Hodnocení (#8.5) na opačné straně disku
     const scoreTag = rating ? `#${rating}` : "";
     const scoreAngle = -18 + (randB() - 0.5) * 18;
 
@@ -213,15 +402,93 @@ function generateSharpieDiscSVG(artistName, albumName, rating) {
         </svg>
     `;
 }
-// Start
+
+// =========================================================
+// START APLIKACE
+// =========================================================
 document.addEventListener("DOMContentLoaded", async () => {
+    checkMagicPairingHash();
+    renderLibrary();
+
+    if (syncToken) {
+        await pullFromCloud();
+    } else {
+        setSyncUI("", "Sync");
+    }
+
     await SpotifyAPI.finishAuth();
     const token = await SpotifyAPI.getToken();
     const loginBtn = document.getElementById("login-btn");
     if (loginBtn) loginBtn.style.display = token ? "none" : "inline-block";
-    renderLibrary();
 });
 
+// Automatické obnovení dat při návratu do záložky na mobilu / PC
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && syncToken) {
+        pullFromCloud(true);
+    }
+});
+
+// =========================================================
+// OVLÁDÁNÍ SYNC MODALU
+// =========================================================
+document.getElementById("sync-status-btn")?.addEventListener("click", () => {
+    const setupPanel = document.getElementById("sync-setup-panel");
+    const connectedPanel = document.getElementById("sync-connected-panel");
+    if (syncToken) {
+        setupPanel.style.display = "none";
+        connectedPanel.style.display = "block";
+    } else {
+        setupPanel.style.display = "block";
+        connectedPanel.style.display = "none";
+    }
+    modals.sync.classList.add("active");
+});
+
+document.getElementById("connect-sync-btn")?.addEventListener("click", async () => {
+    const val = document.getElementById("github-token-input")?.value.trim();
+    if (!val) return;
+    syncToken = val;
+    syncGistId = "";
+    localStorage.setItem("atlas_sync_token", syncToken);
+    localStorage.removeItem("atlas_sync_gist_id");
+
+    const ok = await pullFromCloud();
+    if (ok) {
+        modals.sync.classList.remove("active");
+    } else {
+        alert("Nepodařilo se připojit ke GitHubu. Zkontroluj, zda má token zaškrtnuté oprávnění 'gist'.");
+    }
+});
+
+document.getElementById("copy-magic-link-btn")?.addEventListener("click", async (e) => {
+    if (!syncToken) return;
+    const baseUrl = window.location.origin + window.location.pathname;
+    const magicUrl = `${baseUrl}#sync=${encodeURIComponent(syncToken)}`;
+    await navigator.clipboard.writeText(magicUrl);
+    const btn = e.target;
+    const orig = btn.innerText;
+    btn.innerText = "Odkaz zkopírován!";
+    setTimeout(() => (btn.innerText = orig), 2200);
+});
+
+document.getElementById("force-pull-btn")?.addEventListener("click", async () => {
+    await pullFromCloud();
+    modals.sync.classList.remove("active");
+});
+
+document.getElementById("disconnect-sync-btn")?.addEventListener("click", () => {
+    syncToken = "";
+    syncGistId = "";
+    localStorage.removeItem("atlas_sync_token");
+    localStorage.removeItem("atlas_sync_gist_id");
+    setSyncUI("", "Sync");
+    modals.sync.classList.remove("active");
+});
+
+// =========================================================
+// NAVIGACE & KARTOTÉKA
+// =========================================================
 document.getElementById("login-btn")?.addEventListener("click", () => SpotifyAPI.login());
 
 function switchView(viewName) {
@@ -235,7 +502,6 @@ document.getElementById("back-to-library")?.addEventListener("click", () => {
     renderLibrary();
 });
 
-// --- HLAVNÍ KARTOTÉKA (INTERPRETI / SAMOSTATNÁ ALBA) ---
 document.getElementById("toggle-artists")?.addEventListener("click", (e) => {
     currentMode = "artists";
     updateToggleUI(e.target);
@@ -293,7 +559,7 @@ function renderLibrary() {
     }
 }
 
-// --- DETAIL INTERPRETA (RUČNĚ DOPLŇOVANÁ DISKOGRAFIE) ---
+// --- DETAIL INTERPRETA ---
 const chkAlbum = document.getElementById("filter-album");
 const chkSingle = document.getElementById("filter-single");
 const chkFeature = document.getElementById("filter-features");
@@ -357,7 +623,6 @@ function renderArtistDiscography() {
     freshlyUnboxedAlbumId = null;
 }
 
-// 3D CD JEWEL CASE KARTA S REÁLNOU HLOUBKOU A ARCHIVNÍM OBI PÁSKEM
 function createAlbumCard(album, context, artistName = "") {
     const review = userReviews[album.id] || {};
     const isListened = !!review.listened;
@@ -452,7 +717,7 @@ function createAlbumCard(album, context, artistName = "") {
     return div;
 }
 
-// --- SMOOTH PICKER PRO PŘIDÁVÁNÍ ALB DO DISKOGRAFIE ---
+// --- PICKER PRO PŘIDÁVÁNÍ ALB DO DISKOGRAFIE ---
 document.getElementById("open-album-picker-btn")?.addEventListener("click", openArtistAlbumPicker);
 
 document.querySelectorAll(".picker-tab").forEach(tab => {
@@ -488,7 +753,7 @@ async function openArtistAlbumPicker() {
             ...item,
             group: releaseMap.get(item.id) || item.group
         }));
-        localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+        persistAllChanges();
         renderArtistDiscography();
     }
 
@@ -545,7 +810,7 @@ function renderArtistAlbumPickerList() {
                 artistDiscographies[artistId] = sortChronologically([...currentList, release]);
             }
 
-            localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+            persistAllChanges();
             renderArtistDiscography();
             renderArtistAlbumPickerList();
         };
@@ -600,7 +865,7 @@ document.getElementById("save-review-btn")?.addEventListener("click", () => {
         } else {
             delete userReviews[albumId];
         }
-        localStorage.setItem("atlas_user_reviews", JSON.stringify(userReviews));
+        persistAllChanges();
     }
 
     modals.review.classList.remove("active");
@@ -619,12 +884,12 @@ document.getElementById("remove-album-btn")?.addEventListener("click", () => {
         artistDiscographies[artistId] = (artistDiscographies[artistId] || []).filter(
             a => a.id !== currentReviewAlbum.id
         );
-        localStorage.setItem("atlas_artist_discographies", JSON.stringify(artistDiscographies));
+        persistAllChanges();
         modals.review.classList.remove("active");
         renderArtistDiscography();
     } else {
         savedMusic = savedMusic.filter(item => !(item.type === "albums" && item.id === currentReviewAlbum.id));
-        localStorage.setItem("atlas_music", JSON.stringify(savedMusic));
+        persistAllChanges();
         modals.review.classList.remove("active");
         renderLibrary();
     }
@@ -682,7 +947,7 @@ document.getElementById("search-input")?.addEventListener("input", (e) => {
                         image: img,
                         release_date: res.release_date || null
                     });
-                    localStorage.setItem("atlas_music", JSON.stringify(savedMusic));
+                    persistAllChanges();
                 }
 
                 currentMode = targetType;
