@@ -1139,3 +1139,96 @@ textarea:disabled {
         aspect-ratio: 1;
     }
 }
+/* CLOUD SYNC TLAČÍTKO & MODAL */
+.btn-sync {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #161616;
+    color: #b5b5b5;
+    border: 1px solid #292929;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-sync:hover {
+    background: #1f1f1f;
+    border-color: #3d3d3d;
+    color: #ffffff;
+}
+
+.sync-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.25s, box-shadow 0.25s;
+}
+
+.btn-sync.is-synced .sync-dot {
+    background: #1db954;
+    box-shadow: 0 0 8px rgba(29, 185, 84, 0.65);
+}
+
+.btn-sync.is-syncing .sync-dot {
+    background: #e5b84b;
+    box-shadow: 0 0 8px rgba(229, 184, 75, 0.65);
+}
+
+.btn-sync.is-error .sync-dot {
+    background: #e05a5a;
+}
+
+.sync-help {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #9a9a9a;
+    margin-bottom: 14px;
+}
+
+.sync-help code {
+    background: #111;
+    border: 1px solid #2b2b2b;
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: #eae4d7;
+    font-size: 11.5px;
+}
+
+.sync-info-box {
+    background: #121212;
+    border: 1px solid #242424;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #cfcfcf;
+}
+
+.sync-link-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+input[type="password"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #2e2e2e;
+    background: #111111;
+    color: #f2f2f2;
+    font-size: 13px;
+    outline: none;
+}
+
+input[type="password"]:focus {
+    border-color: #555;
+}
