@@ -22,6 +22,10 @@
                 </div>
             </div>
             <div class="header-right">
+                <button id="sync-status-btn" class="btn-sync" title="Synchronizace mezi PC a mobilem">
+                    <span class="sync-dot"></span>
+                    <span id="sync-status-label">Sync</span>
+                </button>
                 <button id="add-item-btn" class="btn-primary">+ Přidat</button>
                 <button id="login-btn" class="btn-spotify">Připojit Spotify</button>
             </div>
@@ -58,6 +62,52 @@
             </div>
         </header>
         <div id="discography-grid" class="disco-grid"></div>
+    </div>
+
+    <!-- MODAL: CLOUD SYNCHRONIZACE (PC <-> MOBIL) -->
+    <div id="modal-sync" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2>Synchronizace (PC ↔ Mobil)</h2>
+                    <p class="modal-subtitle">Ukládá knihovnu do tvého soukromého GitHub Gistu</p>
+                </div>
+                <button class="btn-icon close-modal">✕</button>
+            </div>
+
+            <div id="sync-setup-panel">
+                <p class="sync-help">
+                    1. Na GitHubu otevři <strong>Settings → Developer settings → Personal access tokens → Tokens (classic)</strong>.<br>
+                    2. Vygeneruj token se zaškrtnutým právem <code>gist</code> a vlož ho sem:
+                </p>
+                <div class="input-group">
+                    <label for="github-token-input">GitHub Token</label>
+                    <input type="password" id="github-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                </div>
+                <div class="modal-actions">
+                    <span></span>
+                    <button id="connect-sync-btn" class="btn-primary" type="button">Propojit a synchronizovat</button>
+                </div>
+            </div>
+
+            <div id="sync-connected-panel" style="display: none;">
+                <div class="sync-info-box">
+                    <div><strong>Stav:</strong> <span id="sync-detail-state">Aktivní</span></div>
+                    <div><strong>Poslední sync:</strong> <span id="sync-last-time">právě teď</span></div>
+                </div>
+                <p class="sync-help">
+                    Pro propojení mobilu zkopíruj tento odkaz, pošli si ho (např. přes Messenger/WhatsApp) a otevři na telefonu — spáruje se sám:
+                </p>
+                <div class="sync-link-row">
+                    <button id="copy-magic-link-btn" class="btn-primary" type="button">Zkopírovat odkaz pro mobil</button>
+                    <button id="force-pull-btn" class="btn-ghost" type="button">Načíst z cloudu</button>
+                </div>
+                <div class="modal-actions" style="margin-top: 18px;">
+                    <button id="disconnect-sync-btn" class="btn-danger" type="button">Odpojit sync</button>
+                    <button class="btn-ghost close-modal" type="button">Zavřít</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL: PŘIDÁNÍ INTERPRETA NEBO ALBA DO KARTOTÉKY -->
